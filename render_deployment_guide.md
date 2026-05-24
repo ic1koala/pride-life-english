@@ -39,7 +39,7 @@ Netlifyは静的サイトホスティングとしては非常に優秀ですが�
 *   **Branch**: `main`
 *   **Root Directory**: (空欄 / デフォルトのままでOK) 💡 **（※コード構成の整理により、設定不要となりました）**
 *   **Runtime**: `Node`
-*   **Build Command**: `npm install --legacy-peer-deps && npm run build`
+*   **Build Command**: `npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm run build`
 *   **Start Command**: `node dist/index.js`
 
 ### 4. 環境変数（Environment Variables）の設定
