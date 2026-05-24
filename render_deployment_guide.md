@@ -37,7 +37,7 @@ Netlifyは静的サイトホスティングとしては非常に優秀ですが�
 *   **Name**: `so-english` (任意。公開URLのプレフィックスになります)
 *   **Region**: `Singapore` (アジア圏に近く最速)
 *   **Branch**: `main`
-*   **Root Directory**: `Manus design`  💡 **（※極めて重要！実コードが入っているフォルダを指定します）**
+*   **Root Directory**: (空欄 / デフォルトのままでOK) 💡 **（※コード構成の整理により、設定不要となりました）**
 *   **Runtime**: `Node`
 *   **Build Command**: `npm install && npm run build`
 *   **Start Command**: `node dist/index.js`
