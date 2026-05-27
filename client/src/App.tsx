@@ -43,9 +43,10 @@ function Router() {
       <Route path="/lessons/:id" component={() => <ProtectedRoute component={LessonPage} />} />
       <Route path="/progress" component={() => <ProtectedRoute component={ProgressPage} />} />
       <Route path="/schedule" component={() => <ProtectedRoute component={SchedulePage} />} />
-      <Route path="/messages" component={() => <ProtectedRoute component={MessagesPage} />} />
+      {/* MVP cuts: QA and messages disabled */}
+      {/* <Route path="/messages" component={() => <ProtectedRoute component={MessagesPage} />} />
       <Route path="/qa" component={() => <ProtectedRoute component={QAPage} />} />
-      <Route path="/qa/:id" component={() => <ProtectedRoute component={QAPostPage} />} />
+      <Route path="/qa/:id" component={() => <ProtectedRoute component={QAPostPage} />} /> */}
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route path="/admin" component={() => <AdminRoute component={AdminPage} />} />
       <Route path="/404" component={NotFound} />

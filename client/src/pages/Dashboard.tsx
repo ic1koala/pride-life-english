@@ -44,12 +44,12 @@ export default function Dashboard() {
     onSuccess: () => { toast.success("レッスンを作成しました！"); utils.lessons.list.invalidate(); },
   });
 
-  const totalLessons = progressSummary?.totalLessons ?? 120;
+  const totalLessons = progressSummary?.totalLessons ?? 96;
   const completedLessons = progressSummary?.completed ?? 0;
   const progressPct = Math.round((completedLessons / totalLessons) * 100);
   const totalPoints = progressSummary?.totalPoints ?? 0;
   const milestones = progressSummary?.milestones ?? [];
-  const currentWeek = Math.max(1, Math.ceil((completedLessons + 1) / 5));
+  const currentWeek = Math.max(1, Math.min(TOTAL_WEEKS, Math.ceil((completedLessons + 1) / 4)));
   const streak = bonusHistory?.[0]?.streakDay ?? 0;
 
   const [viewWeek, setViewWeek] = useState(currentWeek);
@@ -77,36 +77,63 @@ export default function Dashboard() {
   return (
     <div className="pb-6">
       {/* ─── Hero Banner ─── */}
-      <div className="relative overflow-hidden">
-        <img src={SLIDE_BG} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/50" />
-        <div className="relative z-10 px-5 pt-6 pb-8 sm:px-8 sm:pt-8 sm:pb-10">
-          <div className="flex items-center gap-3 mb-5">
-            <img src={SO_LOGO} alt="SO ENGLISH!" className="w-11 h-11 rounded-xl shadow-lg" />
-            <div>
-              <h1 className="font-serif text-lg sm:text-xl font-bold text-white leading-tight">
-                おかえりなさい、{user?.name?.split(" ")[0] ?? "メンバー"}さん
-              </h1>
-              <p className="text-white/70 text-xs mt-0.5">
-                {new Date().toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" })}
+      <div className="relative overflow-hidden rounded-b-[2rem] shadow-xl">
+        <img src={SLIDE_BG} alt="" className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-slate-900/90" />
+        <div className="relative z-10 px-5 pt-7 pb-8 sm:px-8 sm:pt-9 sm:pb-9">
+          
+          {/* Welcome Info Row */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <img src={SO_LOGO} alt="Pride Life English" className="w-11 h-11 rounded-xl shadow-lg border border-white/20" />
+              <div>
+                <h1 className="font-sans text-sm sm:text-base font-semibold text-white/95 leading-tight flex items-center gap-1">
+                  おかえりなさい、<span className="text-pink-300 font-bold">{user?.name?.split(" ")[0] ?? "メンバー"}</span>さん
+                </h1>
+                <p className="text-white/60 text-[10px] mt-0.5 tracking-wide">
+                  {new Date().toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/15">
+              <Sparkles size={12} className="text-amber-300 animate-spin-slow" />
+              <span className="text-xs font-bold text-white tracking-wide">Pride Life English</span>
+            </div>
+          </div>
+
+          {/* 1. Brand Signboard Component (看板ロゴ風のコンポーネント) */}
+          <div className="mb-6 rounded-2xl relative overflow-hidden pride-gradient p-[1px] shadow-2xl animate-fade-in border border-white/5">
+            <div className="bg-black/65 backdrop-blur-md rounded-[15px] px-6 py-5 text-center relative z-10">
+              <span className="text-[9px] font-extrabold tracking-[0.3em] text-pink-300 uppercase block mb-1">
+                ONLINE ENGLISH ACADEMY
+              </span>
+              <h2 className="text-2xl sm:text-3.5xl font-black tracking-tight text-white select-none">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300 drop-shadow-[0_2px_12px_rgba(236,72,153,0.3)] font-serif italic">
+                  Pride Life English
+                </span>
+              </h2>
+              <div className="h-[1px] w-20 bg-gradient-to-r from-transparent via-white/30 to-transparent mx-auto my-2.5" />
+              <p className="text-white/80 text-[11px] font-medium tracking-wide">
+                自分らしさを誇れる英語力を手に入れよう
               </p>
             </div>
           </div>
 
           {/* Progress bar */}
-          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-white/90 text-xs font-medium">6ヶ月コース進捗</span>
-              <span className="text-white font-bold text-sm">{progressPct}%</span>
+              <span className="text-white/95 text-xs font-medium">6ヶ月コース全体進捗</span>
+              <span className="text-white font-black text-sm">{progressPct}%</span>
             </div>
             <div className="h-3 bg-white/20 rounded-full overflow-hidden">
               <div className="h-full pride-gradient rounded-full transition-all duration-700 ease-out" style={{ width: `${progressPct}%` }} />
             </div>
-            <div className="flex justify-between mt-2 text-[10px] text-white/60">
+            <div className="flex justify-between mt-2 text-[10px] text-white/70">
               <span>{completedLessons} / {totalLessons} レッスン</span>
-              <span>Week {currentWeek} / {TOTAL_WEEKS}</span>
+              <span className="font-semibold">Week {currentWeek} / {TOTAL_WEEKS}</span>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -201,7 +228,7 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <div className="w-10 h-10 rounded-xl pride-gradient flex items-center justify-center shrink-0 ml-3">
-                        <Play size={18} className="text-white" />
+                        <Play size={18} className="text-white animate-pulse" />
                       </div>
                     </div>
                   </div>
@@ -211,28 +238,36 @@ export default function Dashboard() {
           );
         })()}
 
-        {/* ─── Weekly Lessons ─── */}
+        {/* 2. YouTube-style Drama Thumbnail Carousel List (レッスン一覧のカルーセル化) */}
         <div className="premium-card rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <BookOpen size={14} className="text-primary" />
+              <BookOpen size={15} className="text-primary" />
               <h3 className="text-sm font-bold text-foreground">Week {viewWeek} のレッスン</h3>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 bg-muted/30 rounded-xl p-1 border border-border/50">
               <button onClick={() => setViewWeek(Math.max(1, viewWeek - 1))} disabled={viewWeek <= 1}
-                className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
-                <ChevronLeft size={14} />
+                className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+                <ChevronLeft size={13} />
               </button>
-              <span className="text-[11px] text-muted-foreground w-14 text-center">{viewWeek} / {TOTAL_WEEKS}</span>
+              <span className="text-[10px] font-bold text-muted-foreground w-16 text-center">{viewWeek} / {TOTAL_WEEKS}</span>
               <button onClick={() => setViewWeek(Math.min(TOTAL_WEEKS, viewWeek + 1))} disabled={viewWeek >= TOTAL_WEEKS}
-                className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
-                <ChevronRight size={14} />
+                className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+                <ChevronRight size={13} />
               </button>
             </div>
           </div>
 
           {loadingLessons ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="min-w-[260px] w-[260px] space-y-2">
+                  <Skeleton className="aspect-video w-full rounded-xl" />
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                  <Skeleton className="h-3 w-1/2 rounded" />
+                </div>
+              ))}
+            </div>
           ) : !weekLessons?.length ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
               <Lock size={20} className="mx-auto mb-2 opacity-40" />
@@ -244,29 +279,87 @@ export default function Dashboard() {
               )}
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="flex overflow-x-auto gap-4 pb-4 pt-1 px-1 scrollbar-none snap-x" style={{ scrollbarWidth: "none" }}>
               {weekLessons.map((lesson) => {
                 const done = (progressSummary?.completed ?? 0) >= lesson.orderIndex;
                 const isCurrent = (progressSummary?.completed ?? 0) === lesson.orderIndex - 1;
+                const progressPct = done ? 100 : isCurrent ? 25 : 0;
+                
+                // YouTube-style dramatic thumbnails
+                const DRAMA_THUMBS = [
+                  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=400&auto=format&fit=crop", // study
+                  "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&auto=format&fit=crop", // movie
+                  "https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=400&auto=format&fit=crop", // meeting
+                  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=400&auto=format&fit=crop", // cafe drama
+                ];
+                const thumbnail = DRAMA_THUMBS[(lesson.dayNumber - 1) % DRAMA_THUMBS.length];
+
                 return (
                   <Link key={lesson.id} href={`/lessons/${lesson.id}`}>
                     <div className={cn(
-                      "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-150 active:scale-[0.98]",
-                      done ? "bg-emerald-50/80" : isCurrent ? "bg-primary/5 ring-1 ring-primary/20" : "hover:bg-muted/50"
+                      "min-w-[260px] w-[260px] sm:min-w-[290px] sm:w-[290px] snap-start flex flex-col premium-card rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl active:scale-[0.98] border border-border group relative",
+                      isCurrent && "ring-2 ring-primary/45 ring-offset-1"
                     )}>
-                      <div className={cn(
-                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold",
-                        done ? "bg-emerald-500 text-white" : isCurrent ? "pride-gradient text-white" : "bg-muted text-muted-foreground"
-                      )}>
-                        {done ? <CheckCircle2 size={16} /> : `D${lesson.dayNumber}`}
+                      {/* aspect-video Image Thumbnail */}
+                      <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                        <img src={thumbnail} alt={lesson.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        
+                        {/* Day label */}
+                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-lg bg-black/75 text-white font-extrabold text-[10px] tracking-wider backdrop-blur-sm">
+                          Day {lesson.dayNumber}
+                        </div>
+
+                        {/* Complete mark (完了マーク チェックアイコン) */}
+                        {done && (
+                          <div className="absolute inset-0 bg-emerald-950/45 backdrop-blur-[1px] flex items-center justify-center">
+                            <div className="w-11 h-11 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg border-2 border-white animate-bounce-short">
+                              <CheckCircle2 size={22} className="text-white" />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Current lesson indicator overlay */}
+                        {isCurrent && !done && (
+                          <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                            <div className="w-11 h-11 rounded-full pride-gradient flex items-center justify-center shadow-lg border border-white/20 group-hover:scale-110 transition-transform">
+                              <Play size={18} className="text-white fill-white ml-0.5" />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {lesson.title.replace(/^Week \d+ Day \d+: /, "")}
-                        </p>
-                        {isCurrent && <span className="text-[10px] text-primary font-medium">← 次のレッスン</span>}
+
+                      {/* Content details & dynamic progress indicators */}
+                      <div className="p-3.5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] text-muted-foreground font-semibold">
+                              Week {lesson.weekNumber} · Day {lesson.dayNumber}
+                            </p>
+                            {isCurrent && (
+                              <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">NEXT</span>
+                            )}
+                          </div>
+                          <h4 className="font-bold text-sm text-foreground mt-1 line-clamp-1 group-hover:text-primary transition-colors">
+                            {lesson.title.replace(/^Week \d+ Day \d+: /, "")}
+                          </h4>
+                        </div>
+
+                        {/* 2b. Progress display & Linear progress bar */}
+                        <div className="mt-3.5 space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-bold">
+                            <span className={cn(done ? "text-emerald-600" : isCurrent ? "text-primary" : "text-muted-foreground")}>
+                              {done ? "Completed" : isCurrent ? "25% Done!" : "0% Done!"}
+                            </span>
+                            <span className="text-muted-foreground/80">{progressPct}% Completed</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              done ? "bg-emerald-500" : "pride-gradient"
+                            )} style={{ width: `${progressPct}%` }} />
+                          </div>
+                        </div>
                       </div>
-                      <ChevronRight size={14} className="text-muted-foreground shrink-0" />
                     </div>
                   </Link>
                 );
@@ -291,7 +384,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5">
             {Array.from({ length: TOTAL_WEEKS }, (_, i) => {
               const wk = i + 1;
-              const wkDone = Math.floor(completedLessons / 5) >= wk;
+              const wkDone = Math.floor(completedLessons / 4) >= wk;
               const wkCurrent = currentWeek === wk;
               return (
                 <button key={wk} onClick={() => setViewWeek(wk)}

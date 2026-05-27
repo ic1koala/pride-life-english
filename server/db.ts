@@ -60,13 +60,13 @@ function generateMockLessons() {
   let orderIndex = 1;
   for (let week = 1; week <= 24; week++) {
     const themeIdx = (week - 1) % LESSON_THEMES.length;
-    for (let day = 1; day <= 5; day++) {
+    for (let day = 1; day <= 4; day++) {
       mock.push({
         id: orderIndex,
         weekNumber: week,
         dayNumber: day,
         title: `Week ${week} Day ${day}: ${LESSON_THEMES[themeIdx]}`,
-        description: `Lesson ${(week - 1) * 5 + day} of 120. Explore ${LESSON_THEMES[themeIdx]} with confidence and pride.`,
+        description: `Lesson ${(week - 1) * 4 + day} of 96. Explore ${LESSON_THEMES[themeIdx]} with confidence and pride.`,
         videoUrl: "",
         journalingPrompt: `${JOURNALING_PROMPTS[themeIdx]} (Week ${week}, Day ${day})`,
         speakingPrompt: `Practice saying: "${SPEAKING_PROMPTS[themeIdx]}"`,

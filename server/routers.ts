@@ -284,11 +284,11 @@ export const appRouter = router({
       let orderIndex = 1;
       for (let week = 1; week <= 24; week++) {
         const themeIdx = (week - 1) % LESSON_THEMES.length;
-        for (let day = 1; day <= 5; day++) {
+        for (let day = 1; day <= 4; day++) {
           await upsertLesson({
             weekNumber: week, dayNumber: day,
             title: `Week ${week} Day ${day}: ${LESSON_THEMES[themeIdx]}`,
-            description: `Lesson ${(week - 1) * 5 + day} of 120. Explore ${LESSON_THEMES[themeIdx]} with confidence and pride.`,
+            description: `Lesson ${(week - 1) * 4 + day} of 96. Explore ${LESSON_THEMES[themeIdx]} with confidence and pride.`,
             videoUrl: "", journalingPrompt: `${JOURNALING_PROMPTS[themeIdx]} (Week ${week}, Day ${day})`,
             speakingPrompt: `Practice saying: "${SPEAKING_PROMPTS[themeIdx]}"`,
             orderIndex, publishedAt: new Date(),
@@ -296,7 +296,7 @@ export const appRouter = router({
           orderIndex++;
         }
       }
-      return { seeded: 120 };
+      return { seeded: 96 };
     }),
     listLessons: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
@@ -305,7 +305,7 @@ export const appRouter = router({
     createLesson: protectedProcedure
       .input(z.object({
         weekNumber: z.number().min(1).max(24),
-        dayNumber: z.number().min(1).max(5),
+        dayNumber: z.number().min(1).max(4),
         title: z.string().min(1).max(256),
         description: z.string().optional(),
         videoUrl: z.string().optional(),
@@ -315,7 +315,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const orderIndex = (input.weekNumber - 1) * 5 + input.dayNumber;
+        const orderIndex = (input.weekNumber - 1) * 4 + input.dayNumber;
         const lesson = await createLesson({
           weekNumber: input.weekNumber,
           dayNumber: input.dayNumber,
@@ -333,7 +333,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         weekNumber: z.number().min(1).max(24).optional(),
-        dayNumber: z.number().min(1).max(5).optional(),
+        dayNumber: z.number().min(1).max(4).optional(),
         title: z.string().min(1).max(256).optional(),
         description: z.string().optional(),
         videoUrl: z.string().optional(),
@@ -357,7 +357,7 @@ export const appRouter = router({
           const existing = await getLessonById(id);
           const w = fields.weekNumber ?? existing?.weekNumber ?? 1;
           const d = fields.dayNumber ?? existing?.dayNumber ?? 1;
-          updateData.orderIndex = (w - 1) * 5 + d;
+          updateData.orderIndex = (w - 1) * 4 + d;
         }
         if (publish !== undefined) updateData.publishedAt = publish ? new Date() : null;
         await updateLesson(id, updateData);

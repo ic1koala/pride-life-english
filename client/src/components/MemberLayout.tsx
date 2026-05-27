@@ -27,7 +27,7 @@ const bottomTabs = [
   { href: "/dashboard", label: "ホーム", icon: Home },
   { href: "/progress", label: "レッスン", icon: BookOpen },
   { href: "/schedule", label: "スケジュール", icon: Calendar },
-  { href: "/messages", label: "メッセージ", icon: Mail },
+  { href: "https://line.me/R/ti/p/@pridelife", label: "公式LINE", icon: MessageCircle, isExternal: true },
   { href: "/settings", label: "マイページ", icon: User },
 ];
 
@@ -36,8 +36,7 @@ const sidebarNav = [
   { href: "/dashboard", label: "ホーム", labelEn: "Home", icon: Home },
   { href: "/progress", label: "進捗トラッカー", labelEn: "Progress", icon: TrendingUp },
   { href: "/schedule", label: "年間スケジュール", labelEn: "Schedule", icon: Calendar },
-  { href: "/messages", label: "メッセージ", labelEn: "Messages", icon: Mail },
-  { href: "/qa", label: "Q&A コミュニティ", labelEn: "Community", icon: MessageCircle },
+  { href: "https://line.me/R/ti/p/@pridelife", label: "公式LINEサポート", labelEn: "LINE Support", icon: MessageCircle, isExternal: true },
   { href: "/settings", label: "設定", labelEn: "Settings", icon: Settings },
 ];
 
@@ -60,7 +59,10 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     utils.notifications.list.invalidate();
   };
 
-  const isActive = (href: string) => location === href || location.startsWith(href + "/");
+  const isActive = (href: string) => {
+    if (href.startsWith("http")) return false;
+    return location === href || location.startsWith(href + "/");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -110,26 +112,40 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {sidebarNav.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href}>
+          {sidebarNav.map(({ href, label, icon: Icon, isExternal }) => {
+            const active = isActive(href);
+            const content = (
               <div
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150",
-                  isActive(href)
+                  active
                     ? "text-white shadow-sm"
-                    : "opacity-70 hover:opacity-100"
+                    : isExternal
+                      ? "text-[#06C755] font-semibold hover:bg-emerald-500/10"
+                      : "opacity-70 hover:opacity-100"
                 )}
                 style={
-                  isActive(href)
+                  active
                     ? { background: "var(--sidebar-accent)", color: "var(--sidebar-accent-foreground)" }
-                    : { color: "var(--sidebar-foreground)" }
+                    : isExternal
+                      ? {}
+                      : { color: "var(--sidebar-foreground)" }
                 }
               >
-                <Icon size={18} />
+                <Icon size={18} className={isExternal ? "text-[#06C755]" : ""} />
                 <span>{label}</span>
               </div>
-            </Link>
-          ))}
+            );
+            return isExternal ? (
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="block">
+                {content}
+              </a>
+            ) : (
+              <Link key={href} href={href}>
+                {content}
+              </Link>
+            );
+          })}
 
           {(user as any)?.role === "admin" && (
             <Link href="/admin">
@@ -207,20 +223,33 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
           <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
           <div className="fixed top-14 right-0 bottom-0 z-50 w-64 bg-card border-l border-border lg:hidden overflow-y-auto animate-scale-in">
             <nav className="p-4 space-y-1">
-              {sidebarNav.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href}>
+              {sidebarNav.map(({ href, label, icon: Icon, isExternal }) => {
+                const active = isActive(href);
+                const content = (
                   <div
-                    onClick={() => setSidebarOpen(false)}
                     className={cn(
                       "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors",
-                      isActive(href) ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : isExternal
+                          ? "text-[#06C755] font-semibold hover:bg-emerald-500/5"
+                          : "text-foreground hover:bg-muted"
                     )}
                   >
-                    <Icon size={18} />
+                    <Icon size={18} className={isExternal ? "text-[#06C755]" : ""} />
                     <span>{label}</span>
                   </div>
-                </Link>
-              ))}
+                );
+                return isExternal ? (
+                  <a key={href} href={href} target="_blank" rel="noopener noreferrer" onClick={() => setSidebarOpen(false)} className="block">
+                    {content}
+                  </a>
+                ) : (
+                  <Link key={href} href={href}>
+                    <div onClick={() => setSidebarOpen(false)}>{content}</div>
+                  </Link>
+                );
+              })}
               {(user as any)?.role === "admin" && (
                 <Link href="/admin">
                   <div
@@ -309,31 +338,46 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       <div className="bottom-tab-bar lg:hidden">
         <div className="flex items-center justify-around h-14">
-          {bottomTabs.map(({ href, label, icon: Icon }) => {
+          {bottomTabs.map(({ href, label, icon: Icon, isExternal }) => {
             const active = isActive(href);
-            return (
-              <Link key={href} href={href}>
-                <div className="flex flex-col items-center justify-center gap-0.5 cursor-pointer min-w-[3.5rem] py-1">
-                  <Icon
-                    size={20}
-                    className={cn(
-                      "transition-colors duration-150",
-                      active ? "text-primary" : "text-muted-foreground"
-                    )}
-                    strokeWidth={active ? 2.5 : 1.8}
-                  />
-                  <span
-                    className={cn(
-                      "text-[10px] font-medium transition-colors duration-150",
-                      active ? "text-primary" : "text-muted-foreground"
-                    )}
-                  >
-                    {label}
-                  </span>
-                  {active && (
-                    <div className="w-1 h-1 rounded-full pride-gradient mt-0.5" />
+            const content = (
+              <div className="flex flex-col items-center justify-center gap-0.5 cursor-pointer min-w-[3.5rem] py-1">
+                <Icon
+                  size={20}
+                  className={cn(
+                    "transition-colors duration-150",
+                    active
+                      ? "text-primary"
+                      : isExternal
+                        ? "text-[#06C755]"
+                        : "text-muted-foreground"
                   )}
-                </div>
+                  strokeWidth={active ? 2.5 : 1.8}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] font-medium transition-colors duration-150",
+                    active
+                      ? "text-primary"
+                      : isExternal
+                        ? "text-[#06C755]"
+                        : "text-muted-foreground"
+                  )}
+                >
+                  {label}
+                </span>
+                {active && (
+                  <div className="w-1 h-1 rounded-full pride-gradient mt-0.5" />
+                )}
+              </div>
+            );
+            return isExternal ? (
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer">
+                {content}
+              </a>
+            ) : (
+              <Link key={href} href={href}>
+                {content}
               </Link>
             );
           })}

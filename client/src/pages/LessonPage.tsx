@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Mic, MicOff, Play, Pause, Square, CheckCircle2, Loader2,
-  BookOpen, PenLine, Volume2, ChevronLeft, ChevronRight, Star,
-  SkipBack, SkipForward, RotateCcw, Settings2, Eye, Headphones,
+  Play, Pause, CheckCircle2, Loader2,
+  BookOpen, ChevronLeft, ChevronRight, Star,
+  SkipBack, SkipForward,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Streamdown } from "streamdown";
@@ -22,14 +22,12 @@ const SKILL_ICONS = [
   { symbol: "☆", label: "Master", key: "master" },
 ];
 
-/* ── Custom Audio Player ── */
+/* ── 3. Custom Audio Player Implementation (カスタム音声プレイヤーの新規実装) ── */
 function AudioPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [skipSec, setSkipSec] = useState(3);
-  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -40,24 +38,38 @@ function AudioPlayer({ src }: { src: string }) {
     a.addEventListener("timeupdate", onTime);
     a.addEventListener("loadedmetadata", onDur);
     a.addEventListener("ended", onEnd);
-    return () => { a.removeEventListener("timeupdate", onTime); a.removeEventListener("loadedmetadata", onDur); a.removeEventListener("ended", onEnd); };
+    return () => {
+      a.removeEventListener("timeupdate", onTime);
+      a.removeEventListener("loadedmetadata", onDur);
+      a.removeEventListener("ended", onEnd);
+    };
   }, [src]);
 
   const toggle = () => {
     const a = audioRef.current;
     if (!a) return;
-    if (playing) { a.pause(); setPlaying(false); }
-    else { a.play(); setPlaying(true); }
+    if (playing) {
+      a.pause();
+      setPlaying(false);
+    } else {
+      a.play();
+      setPlaying(true);
+    }
   };
 
   const skip = (sec: number) => {
     const a = audioRef.current;
-    if (a) a.currentTime = Math.max(0, Math.min(a.duration, a.currentTime + sec));
+    if (a) {
+      a.currentTime = Math.max(0, Math.min(a.duration, a.currentTime + sec));
+    }
   };
 
   const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const a = audioRef.current;
-    if (a) { a.currentTime = parseFloat(e.target.value); setCurrentTime(a.currentTime); }
+    if (a) {
+      a.currentTime = parseFloat(e.target.value);
+      setCurrentTime(a.currentTime);
+    }
   };
 
   const fmt = (s: number) => {
@@ -68,56 +80,65 @@ function AudioPlayer({ src }: { src: string }) {
   };
 
   return (
-    <div className="bg-card rounded-2xl p-4 border border-border">
+    <div className="bg-muted/40 backdrop-blur-md rounded-2xl p-4 border border-border/80 shadow-inner">
       <audio ref={audioRef} src={src} preload="metadata" />
-      <div className="flex items-center gap-3">
-        {/* Skip back */}
-        <button onClick={() => skip(-skipSec)} className="p-2 rounded-full hover:bg-muted transition-colors active:scale-95" title={`${skipSec}秒戻す`}>
-          <SkipBack size={18} className="text-muted-foreground" />
-        </button>
-        {/* Play/Pause */}
-        <button onClick={toggle} className="w-11 h-11 rounded-full pride-gradient flex items-center justify-center shadow-md hover:opacity-90 transition-opacity active:scale-95">
-          {playing ? <Pause size={20} className="text-white" /> : <Play size={20} className="text-white ml-0.5" />}
-        </button>
-        {/* Skip forward */}
-        <button onClick={() => skip(skipSec)} className="p-2 rounded-full hover:bg-muted transition-colors active:scale-95" title={`${skipSec}秒進む`}>
-          <SkipForward size={18} className="text-muted-foreground" />
-        </button>
-
-        {/* Progress bar */}
-        <div className="flex-1 flex flex-col gap-1">
-          <input
-            type="range" min={0} max={duration || 0} step={0.1} value={currentTime}
-            onChange={seek}
-            className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
-          />
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>{fmt(currentTime)}</span>
-            <span>{fmt(duration)}</span>
-          </div>
-        </div>
-
-        {/* Settings */}
-        <div className="relative">
-          <button onClick={() => setShowSettings(!showSettings)} className="p-2 rounded-full hover:bg-muted transition-colors">
-            <Settings2 size={14} className="text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        
+        {/* Playback Control Row */}
+        <div className="flex items-center gap-3">
+          {/* Skip back 5 seconds */}
+          <button
+            onClick={() => skip(-5)}
+            className="w-10 h-10 rounded-full bg-card hover:bg-muted border border-border flex items-center justify-center transition-all duration-200 active:scale-90"
+            title="5秒戻る"
+          >
+            <SkipBack size={15} className="text-muted-foreground mr-0.5" />
+            <span className="text-[9px] font-extrabold text-muted-foreground">5s</span>
           </button>
-          {showSettings && (
-            <div className="absolute bottom-full right-0 mb-2 bg-card border border-border rounded-xl p-3 shadow-lg z-10 w-40">
-              <p className="text-[10px] text-muted-foreground mb-1.5">スキップ秒数</p>
-              <div className="flex gap-1">
-                {[1, 3, 5, 10].map((s) => (
-                  <button key={s} onClick={() => { setSkipSec(s); setShowSettings(false); }}
-                    className={cn("flex-1 py-1 rounded-lg text-xs font-medium transition-colors",
-                      skipSec === s ? "pride-gradient text-white" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    )}>
-                    {s}s
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+
+          {/* Play/Pause Button */}
+          <button
+            onClick={toggle}
+            className="w-12 h-12 rounded-full pride-gradient flex items-center justify-center shadow-md hover:brightness-105 active:scale-95 transition-all duration-200"
+          >
+            {playing ? <Pause size={20} className="text-white" /> : <Play size={20} className="text-white ml-0.5" />}
+          </button>
+
+          {/* Skip forward 5 seconds */}
+          <button
+            onClick={() => skip(5)}
+            className="w-10 h-10 rounded-full bg-card hover:bg-muted border border-border flex items-center justify-center transition-all duration-200 active:scale-90"
+            title="5秒進む"
+          >
+            <span className="text-[9px] font-extrabold text-muted-foreground mr-0.5">5s</span>
+            <SkipForward size={15} className="text-muted-foreground" />
+          </button>
         </div>
+
+        {/* Progress seekbar & timeline */}
+        <div className="flex-1 w-full flex items-center gap-3">
+          <span className="text-xs font-mono font-bold text-muted-foreground min-w-[32px] text-right">
+            {fmt(currentTime)}
+          </span>
+          <div className="flex-1 relative flex items-center">
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={currentTime}
+              onChange={seek}
+              className="w-full h-1.5 rounded-full appearance-none bg-muted hover:bg-muted/80 cursor-pointer accent-primary transition-colors"
+              style={{
+                background: `linear-gradient(to right, hsl(var(--primary)) ${(currentTime / (duration || 1)) * 100}%, hsl(var(--muted)) ${(currentTime / (duration || 1)) * 100}%)`
+              }}
+            />
+          </div>
+          <span className="text-xs font-mono font-bold text-muted-foreground min-w-[32px]">
+            {fmt(duration)}
+          </span>
+        </div>
+
       </div>
     </div>
   );
@@ -137,26 +158,23 @@ export default function LessonPage() {
   const [wpm, setWpm] = useState("");
   const [accuracy, setAccuracy] = useState("");
 
-  // Speaking practice state
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [transcription, setTranscription] = useState("");
+  // Keep existing feedback field display if it is present in progress
   const [feedback, setFeedback] = useState("");
-  const [processingAudio, setProcessingAudio] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
   // Checklist state for textbook sections
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (myProgress?.journalEntry) setJournalText(myProgress.journalEntry ?? "");
-    if (myProgress?.speakingTranscription) setTranscription(myProgress.speakingTranscription ?? "");
     if (myProgress?.speakingFeedback) setFeedback(myProgress.speakingFeedback ?? "");
   }, [myProgress]);
 
   const saveJournal = trpc.progress.saveJournal.useMutation({
-    onSuccess: () => { setJournalSaved(true); toast.success("ジャーナルを保存しました"); setTimeout(() => setJournalSaved(false), 3000); },
+    onSuccess: () => {
+      setJournalSaved(true);
+      toast.success("ジャーナルを保存しました");
+      setTimeout(() => setJournalSaved(false), 3000);
+    },
     onError: () => toast.error("保存に失敗しました"),
   });
 
@@ -168,50 +186,6 @@ export default function LessonPage() {
     },
     onError: () => toast.error("完了処理に失敗しました"),
   });
-
-  const uploadAudio = trpc.speaking.uploadAudio.useMutation();
-  const transcribeAndFeedback = trpc.speaking.transcribeAndFeedback.useMutation({
-    onSuccess: (data) => {
-      setTranscription(data.transcription);
-      setFeedback(data.feedback);
-      setProcessingAudio(false);
-      toast.success("AIフィードバックが完了しました！");
-    },
-    onError: () => { setProcessingAudio(false); toast.error("処理に失敗しました"); },
-  });
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioBlob(blob);
-        stream.getTracks().forEach((t) => t.stop());
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setIsRecording(true);
-    } catch { toast.error("マイクへのアクセスを許可してください"); }
-  };
-
-  const stopRecording = () => { mediaRecorderRef.current?.stop(); setIsRecording(false); };
-
-  const submitAudio = async () => {
-    if (!audioBlob || !lesson) return;
-    setProcessingAudio(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const { key, url } = await uploadAudio.mutateAsync({ lessonId, audioBase64: base64, mimeType: "audio/webm" });
-        await transcribeAndFeedback.mutateAsync({ lessonId, audioKey: key, audioUrl: url, speakingPrompt: lesson.speakingPrompt ?? "" });
-      };
-      reader.readAsDataURL(audioBlob);
-    } catch { setProcessingAudio(false); toast.error("アップロードに失敗しました"); }
-  };
 
   const toggleCheck = (key: string) => setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -318,7 +292,7 @@ export default function LessonPage() {
             )}
           </div>
 
-          {/* Audio player (if audio URL exists) */}
+          {/* Custom 5s Skip Audio player (if video/audio URL exists) */}
           {lesson.videoUrl && (
             <div className="px-4 pb-4">
               <AudioPlayer src={lesson.videoUrl} />
@@ -334,95 +308,36 @@ export default function LessonPage() {
           </div>
         </div>
 
-        {/* ─── Section 3: ジャーナリング ─── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Left: Journaling */}
-          <div className="premium-card rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-muted-foreground">○ ☆</span>
-              <h3 className="text-sm font-bold text-foreground">ジャーナリング</h3>
-            </div>
-            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 mb-3">
-              <p className="text-[10px] font-semibold text-muted-foreground mb-1">Question:</p>
-              <p className="text-sm text-foreground italic leading-relaxed">
-                {lesson.journalingPrompt || "How would you describe your ideal day?"}
-              </p>
-            </div>
-            <Textarea
-              value={journalText}
-              onChange={(e) => setJournalText(e.target.value)}
-              placeholder="英語で自由に書いてみましょう..."
-              className="min-h-32 rounded-xl border-border resize-none text-sm"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-[10px] text-muted-foreground">{journalText.length} 文字</span>
-              <Button size="sm"
-                onClick={() => saveJournal.mutate({ lessonId, journalEntry: journalText })}
-                disabled={saveJournal.isPending || !journalText.trim()}
-                className={cn("rounded-lg text-xs h-7", journalSaved ? "bg-emerald-500 text-white" : "pride-gradient border-0 text-white")}>
-                {saveJournal.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
-                {journalSaved ? "保存済み" : "保存"}
-              </Button>
-            </div>
+        {/* ─── Section 3: ジャーナリング (録音・話す練習機能は削除し、ジャーナリング単体に最適化) ─── */}
+        <div className="premium-card rounded-2xl p-5 border border-border shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-muted-foreground">○ ☆</span>
+            <h3 className="text-sm font-bold text-foreground">ジャーナリング</h3>
+          </div>
+          
+          <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 mb-4">
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Question:</p>
+            <p className="text-sm text-foreground italic font-medium leading-relaxed">
+              {lesson.journalingPrompt || "How would you describe your ideal day?"}
+            </p>
           </div>
 
-          {/* Right: Speaking practice */}
-          <div className="premium-card rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-muted-foreground">☆</span>
-              <h3 className="text-sm font-bold text-foreground">ジャーナリングで話す練習</h3>
-            </div>
+          <Textarea
+            value={journalText}
+            onChange={(e) => setJournalText(e.target.value)}
+            placeholder="英語で自由に書いてみましょう..."
+            className="min-h-36 rounded-xl border-border resize-none text-sm focus-visible:ring-primary"
+          />
 
-            <div className="p-3 rounded-xl bg-muted/50 border border-border mb-3 min-h-20">
-              <p className="text-xs text-muted-foreground mb-1">あなたの回答を声に出して練習しましょう</p>
-              {transcription && (
-                <p className="text-sm text-foreground italic mt-1">"{transcription}"</p>
-              )}
-            </div>
-
-            {/* Record button */}
-            <div className="flex flex-col items-center gap-3 mb-3">
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={cn(
-                  "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 shadow-md active:scale-95",
-                  isRecording ? "bg-red-500 animate-pulse" : "pride-gradient hover:opacity-90"
-                )}
-              >
-                {isRecording ? <Square size={22} className="text-white" /> : <Mic size={22} className="text-white" />}
-              </button>
-              <p className="text-[11px] text-muted-foreground">
-                {isRecording ? "録音中... タップで停止" : audioBlob ? "録音完了" : "タップで録音開始"}
-              </p>
-              {audioBlob && !isRecording && (
-                <Button size="sm" onClick={submitAudio} disabled={processingAudio}
-                  className="pride-gradient border-0 text-white rounded-lg text-xs h-8">
-                  {processingAudio ? <><Loader2 size={12} className="animate-spin mr-1" /> 処理中...</> : "AIフィードバックを受ける"}
-                </Button>
-              )}
-            </div>
-
-            {/* Sub-sections matching textbook */}
-            <div className="space-y-2">
-              {[
-                { icon: "☆", label: "音読", key: "ondoku" },
-                { icon: "☆", label: "リードアンドルックアップ", key: "readlookup" },
-                { icon: "☆", label: "瞬間解答", key: "shunkan" },
-              ].map((item) => (
-                <div key={item.key} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{item.icon}</span>
-                    <span className="text-xs font-medium text-foreground">{item.label}</span>
-                  </div>
-                  <button onClick={() => toggleCheck(item.key)}
-                    className={cn("w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                      checklist[item.key] ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground/30"
-                    )}>
-                    {checklist[item.key] && <CheckCircle2 size={12} className="text-white" />}
-                  </button>
-                </div>
-              ))}
-            </div>
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-xs text-muted-foreground font-medium">{journalText.length} 文字</span>
+            <Button size="sm"
+              onClick={() => saveJournal.mutate({ lessonId, journalEntry: journalText })}
+              disabled={saveJournal.isPending || !journalText.trim()}
+              className={cn("rounded-xl text-xs h-8 px-4 font-bold transition-all", journalSaved ? "bg-emerald-500 text-white" : "pride-gradient border-0 text-white")}>
+              {saveJournal.isPending ? <Loader2 size={12} className="animate-spin mr-1.5" /> : null}
+              {journalSaved ? "保存済み" : "保存する"}
+            </Button>
           </div>
         </div>
 
@@ -481,7 +396,7 @@ export default function LessonPage() {
           <Textarea placeholder="今日の気づきやメモ..." className="min-h-20 border-0 bg-transparent text-sm resize-none p-0 focus-visible:ring-0" />
         </div>
 
-        {/* ─── AI Feedback (if available) ─── */}
+        {/* ─── AI Feedback (if available from previous speech practice data) ─── */}
         {feedback && (
           <div className="premium-card rounded-2xl p-4 border-l-4 border-l-primary">
             <h4 className="font-semibold text-foreground mb-2 text-sm flex items-center gap-2">
