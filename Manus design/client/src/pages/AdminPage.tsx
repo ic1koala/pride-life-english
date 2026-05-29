@@ -344,7 +344,7 @@ export default function AdminPage() {
                 className="rounded-xl gap-2"
               >
                 {seedLessons.isPending ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-                Seed 120
+                Seed 96
               </Button>
             </div>
           </div>
@@ -376,7 +376,7 @@ export default function AdminPage() {
                   ) : filteredLessons.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                        No lessons found. Click "Add Lesson" or "Seed 120" to get started.
+                        No lessons found. Click "Add Lesson" or "Seed 96" to get started.
                       </td>
                     </tr>
                   ) : (
@@ -461,11 +461,11 @@ export default function AdminPage() {
               <div className="relative h-4 bg-muted rounded-full overflow-hidden">
                 <div
                   className="absolute inset-y-0 left-0 pride-gradient rounded-full"
-                  style={{ width: `${Math.round(((memberProgress.completed ?? 0) / 120) * 100)}%` }}
+                  style={{ width: `${Math.round(((memberProgress.completed ?? 0) / 96) * 100)}%` }}
                 />
               </div>
               <p className="text-sm text-muted-foreground text-center">
-                {Math.round(((memberProgress.completed ?? 0) / 120) * 100)}% of course complete
+                {Math.round(((memberProgress.completed ?? 0) / 96) * 100)}% of course complete
               </p>
               {memberProgress.milestones && memberProgress.milestones.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -510,11 +510,11 @@ export default function AdminPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Day (1-5)</Label>
+                <Label>Day (1-4)</Label>
                 <Input
                   type="number"
                   min={1}
-                  max={5}
+                  max={4}
                   value={form.dayNumber}
                   onChange={(e) => setForm({ ...form, dayNumber: Number(e.target.value) })}
                   className="rounded-xl"
