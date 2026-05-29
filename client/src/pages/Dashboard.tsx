@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BookOpen, Star, Flame, Trophy, Calendar, ChevronRight, ChevronLeft,
-  CheckCircle2, Lock, Play,
+  CheckCircle2, Lock, Play, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,18 @@ export default function Dashboard() {
   });
 
   useEffect(() => { claimBonus.mutate(); }, []);
+
+  const { data: profileData } = trpc.auth.profile.useQuery();
+  const buyFreeze = trpc.streak.buyFreeze.useMutation({
+    onSuccess: (data) => {
+      toast.success("ストリークフリーズを購入しました！❄️");
+      utils.auth.profile.invalidate();
+      utils.loginBonus.totalPoints.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message || "購入に失敗しました");
+    }
+  });
 
   const seedLessons = trpc.admin.seedLessons.useMutation({
     onSuccess: () => { toast.success("レッスンを作成しました！"); utils.lessons.list.invalidate(); },
@@ -197,12 +209,38 @@ export default function Dashboard() {
               {streak}日連続ログイン中！{streak >= 7 ? "50pt/日" : "20pt/日"}獲得中
             </div>
           )}
+
+          {/* Streak Freeze Purchase Section */}
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center">
+                <span className="text-xs font-bold text-sky-500">❄️</span>
+              </div>
+              <div>
+                <span className="text-xs font-bold text-foreground block">ストリークフリーズ</span>
+                <span className="text-[10px] text-muted-foreground block">
+                  現在: <strong className="text-sky-600 font-bold">{profileData?.streakFreezesActive ?? 0}個</strong> 所有中
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={() => buyFreeze.mutate()}
+              disabled={buyFreeze.isPending || (totalPoints ?? 0) < 500}
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl text-xs gap-1.5 font-bold border-sky-200 text-sky-700 hover:bg-sky-50 active:scale-95 transition-all"
+            >
+              {buyFreeze.isPending ? <Loader2 size={12} className="animate-spin" /> : "❄️"}
+              購入 (500 pt)
+            </Button>
+          </div>
         </div>
 
         {/* ─── Today's Lesson CTA ─── */}
         {weekLessons && weekLessons.length > 0 && (() => {
           const completedSet = new Set<number>();
-          // Find next uncompleted lesson
+          const allWeekLessonsCompleted = weekLessons.every((l) => (progressSummary?.completed ?? 0) >= l.orderIndex);
+          // Find next uncompleted lesson, or default to the first week lesson for review
           const nextLesson = weekLessons.find((l) => {
             const done = (progressSummary?.completed ?? 0) >= l.orderIndex;
             if (done) completedSet.add(l.id);
@@ -215,20 +253,27 @@ export default function Dashboard() {
                 <div className="pride-gradient-soft p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Play size={14} className="text-primary" />
-                    <span className="text-xs font-bold text-primary">今日のレッスン</span>
+                    <span className="text-xs font-bold text-primary">
+                      {allWeekLessonsCompleted ? "今週の復習をしよう！" : "今日のレッスン"}
+                    </span>
                   </div>
                   <div className="bg-card rounded-xl p-3.5">
                     <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] text-muted-foreground">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block mb-1">
                           Week {nextLesson.weekNumber} · Day {nextLesson.dayNumber}
-                        </p>
-                        <p className="font-semibold text-foreground text-sm mt-0.5 truncate">
-                          {nextLesson.title.replace(/^Week \d+ Day \d+: /, "")}
-                        </p>
+                        </span>
+                        <h4 className="text-sm font-bold text-foreground">
+                          {allWeekLessonsCompleted ? "今週のレッスンをすべて完了しました！🎉" : nextLesson.title.replace(/^Week \d+ Day \d+: /, "")}
+                        </h4>
+                        {allWeekLessonsCompleted && (
+                          <p className="text-xs text-muted-foreground mt-1 font-medium text-primary">
+                            今週の復習をしよう！毎日ログインして英語の習慣を維持しましょう。
+                          </p>
+                        )}
                       </div>
-                      <div className="w-10 h-10 rounded-xl pride-gradient flex items-center justify-center shrink-0 ml-3">
-                        <Play size={18} className="text-white animate-pulse" />
+                      <div className="w-9 h-9 rounded-full pride-gradient flex items-center justify-center text-white shadow-sm flex-shrink-0 animate-pulse">
+                        <Play size={16} className="ml-0.5" />
                       </div>
                     </div>
                   </div>

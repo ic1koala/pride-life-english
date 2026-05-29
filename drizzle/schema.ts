@@ -27,8 +27,11 @@ export const users = mysqlTable("users", {
     "past_due",
     "canceled",
     "trialing",
+    "suspended",
   ]).default("inactive").notNull(),
   subscriptionCurrentPeriodEnd: timestamp("subscriptionCurrentPeriodEnd"),
+  streakFreezesActive: int("streakFreezesActive").default(0).notNull(),
+  suspensionsUsedCount: int("suspensionsUsedCount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -169,3 +172,28 @@ export const cohorts = mysqlTable("cohorts", {
 
 export type Cohort = typeof cohorts.$inferSelect;
 export type InsertCohort = typeof cohorts.$inferInsert;
+
+// ─── Member Task Progress ───────────────────────────────────────────────────
+export const memberTaskProgress = mysqlTable("memberTaskProgress", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  lessonId: int("lessonId").notNull(),
+  taskKey: varchar("taskKey", { length: 64 }).notNull(),
+  pointsEarned: int("pointsEarned").notNull().default(0),
+  completedAt: timestamp("completedAt").defaultNow().notNull(),
+});
+
+export type MemberTaskProgress = typeof memberTaskProgress.$inferSelect;
+export type InsertMemberTaskProgress = typeof memberTaskProgress.$inferInsert;
+
+// ─── Point Transactions ──────────────────────────────────────────────────────
+export const pointTransactions = mysqlTable("pointTransactions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  amount: int("amount").notNull(),
+  type: varchar("type", { length: 64 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PointTransaction = typeof pointTransactions.$inferSelect;
+export type InsertPointTransaction = typeof pointTransactions.$inferInsert;

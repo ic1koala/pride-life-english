@@ -51,6 +51,20 @@ export const appRouter = router({
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
+    profile: memberProcedure.query(async ({ ctx }) => {
+      const { getUserById } = await import("./db");
+      const user = await getUserById(ctx.user.id);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        subscriptionStatus: user.subscriptionStatus,
+        streakFreezesActive: user.streakFreezesActive,
+        suspensionsUsedCount: user.suspensionsUsedCount,
+      };
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -139,6 +153,18 @@ export const appRouter = router({
       return lesson;
     }),
     byWeek: memberProcedure.input(z.object({ week: z.number() })).query(async ({ input }) => getLessonsByWeek(input.week)),
+    toggleTask: memberProcedure
+      .input(z.object({ lessonId: z.number(), taskKey: z.string(), points: z.number(), completed: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        const { toggleLessonTask } = await import("./db");
+        return toggleLessonTask(ctx.user.id, input.lessonId, input.taskKey, input.points, input.completed);
+      }),
+    taskProgress: memberProcedure
+      .input(z.object({ lessonId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const { getLessonTaskProgress } = await import("./db");
+        return getLessonTaskProgress(ctx.user.id, input.lessonId);
+      }),
   }),
 
   progress: router({
@@ -210,16 +236,46 @@ export const appRouter = router({
       if (existing) return { alreadyClaimed: true, bonus: existing, streak: existing.streakDay, pointsEarned: existing.pointsEarned, totalPoints: await getTotalPoints(ctx.user.id) };
       const history = await getLoginBonusHistory(ctx.user.id, 2);
       let streak = 1;
+      let streakFreezeUsed = false;
       if (history.length > 0) {
         const lastDate = new Date(history[0].loginDate);
         const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-        if (lastDate.toISOString().split("T")[0] === yesterday.toISOString().split("T")[0]) streak = history[0].streakDay + 1;
+        const yesterdayStr = yesterday.toISOString().split("T")[0];
+        const lastDateStr = lastDate.toISOString().split("T")[0];
+        
+        if (lastDateStr === yesterdayStr) {
+          streak = history[0].streakDay + 1;
+        } else {
+          // They missed yesterday! Check if they have a Streak Freeze.
+          const { getUserById, getDb } = await import("./db");
+          const user = await getUserById(ctx.user.id);
+          if (user && user.streakFreezesActive > 0) {
+            streakFreezeUsed = true;
+            streak = history[0].streakDay + 1; // Preserve streak
+            
+            // Decrement active freezes by 1
+            const dbObj = await getDb();
+            if (dbObj) {
+              const { users: schemaUsers } = await import("../drizzle/schema");
+              await dbObj.update(schemaUsers).set({ streakFreezesActive: user.streakFreezesActive - 1 }).where(eq(schemaUsers.id, ctx.user.id));
+            } else {
+              // Mock fallback
+              const dbMock = await import("./db");
+              (dbMock as any).mockStreakFreezesActive = Math.max(0, (dbMock as any).mockStreakFreezesActive - 1);
+            }
+          }
+        }
       }
-      const pointsEarned = streak >= 7 ? 50 : streak >= 3 ? 20 : 10;
+      const pointsEarned = 100;
       await recordLoginBonus({ userId: ctx.user.id, loginDate: today, streakDay: streak, pointsEarned });
-      await createNotification({ userId: ctx.user.id, type: "login_bonus", title: "Login Bonus!", message: `Day ${streak} streak! You earned ${pointsEarned} points today. Keep it up! 🌈` });
+      
+      const message = streakFreezeUsed 
+        ? `Day ${streak} streak! You missed yesterday, but your Streak Freeze was used to preserve your streak! You earned ${pointsEarned} points. ❄️🌈`
+        : `Day ${streak} streak! You earned ${pointsEarned} points today. Keep it up! 🌈`;
+        
+      await createNotification({ userId: ctx.user.id, type: "login_bonus", title: "Login Bonus!", message });
       const totalPoints = await getTotalPoints(ctx.user.id);
-      return { alreadyClaimed: false, streak, pointsEarned, totalPoints };
+      return { alreadyClaimed: false, streak, pointsEarned, totalPoints, streakFreezeUsed };
     }),
     history: memberProcedure.query(async ({ ctx }) => getLoginBonusHistory(ctx.user.id, 30)),
     totalPoints: memberProcedure.query(async ({ ctx }) => getTotalPoints(ctx.user.id)),
@@ -377,6 +433,52 @@ export const appRouter = router({
         await toggleLessonPublish(input.id, input.publish);
         return { success: true };
       }),
+  }),
+
+  streak: router({
+    buyFreeze: memberProcedure.mutation(async ({ ctx }) => {
+      const { buyStreakFreeze } = await import("./db");
+      return buyStreakFreeze(ctx.user.id);
+    }),
+  }),
+
+  subscription: router({
+    suspend: memberProcedure.mutation(async ({ ctx }) => {
+      const { getUserById, suspendUserSubscription } = await import("./db");
+      const user = await getUserById(ctx.user.id);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      
+      if (user.stripeSubscriptionId) {
+        try {
+          const { stripe } = await import("./_core/stripe");
+          await stripe.subscriptions.update(user.stripeSubscriptionId, {
+            pause_collection: { behavior: "keep_as_draft" },
+          });
+        } catch (e) {
+          console.warn("[Stripe] Failed to pause collection, proceeding locally:", e);
+        }
+      }
+      
+      return suspendUserSubscription(ctx.user.id);
+    }),
+    resume: memberProcedure.mutation(async ({ ctx }) => {
+      const { getUserById, resumeUserSubscription } = await import("./db");
+      const user = await getUserById(ctx.user.id);
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      
+      if (user.stripeSubscriptionId) {
+        try {
+          const { stripe } = await import("./_core/stripe");
+          await stripe.subscriptions.update(user.stripeSubscriptionId, {
+            pause_collection: null,
+          });
+        } catch (e) {
+          console.warn("[Stripe] Failed to resume collection, proceeding locally:", e);
+        }
+      }
+      
+      return resumeUserSubscription(ctx.user.id);
+    }),
   }),
 });
 

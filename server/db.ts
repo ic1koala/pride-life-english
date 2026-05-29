@@ -19,8 +19,19 @@ import {
   qaLikes,
   qaPosts,
   users,
+  memberTaskProgress,
+  InsertMemberTaskProgress,
+  pointTransactions,
+  InsertPointTransaction,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+
+// In-memory mock storage for DB-less mode
+let mockUserPoints = 120;
+let mockStreakFreezesActive = 0;
+let mockSuspensionsUsedCount = 0;
+let mockSubscriptionStatus = "active";
+const mockTaskProgressStore: Array<{ userId: number, lessonId: number, taskKey: string, pointsEarned: number }> = [];
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -86,10 +97,12 @@ const mockUser = {
   email: "test@example.com",
   passwordHash: "$2b$12$xuA7oGngwlhuWp1mRbNnlORM7zbvmGozv4U55EEs6R0kDgMz3l946", // "password123"
   role: "admin",
-  subscriptionStatus: "active",
+  get subscriptionStatus() { return mockSubscriptionStatus; },
   stripeCustomerId: "cus_mock_123",
   stripeSubscriptionId: "sub_mock_123",
   subscriptionCurrentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+  get streakFreezesActive() { return mockStreakFreezesActive; },
+  get suspensionsUsedCount() { return mockSuspensionsUsedCount; },
   createdAt: new Date(),
   updatedAt: new Date(),
   lastSignedIn: new Date(),
@@ -177,7 +190,7 @@ export async function createUser(data: InsertUser) {
 export async function updateUserSubscription(userId: number, data: {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
-  subscriptionStatus?: "active" | "inactive" | "past_due" | "canceled" | "trialing";
+  subscriptionStatus?: "active" | "inactive" | "past_due" | "canceled" | "trialing" | "suspended";
   subscriptionCurrentPeriodEnd?: Date | null;
 }) {
   try {
@@ -191,7 +204,7 @@ export async function updateUserSubscription(userId: number, data: {
 
 export async function updateUserSubscriptionByStripeCustomerId(stripeCustomerId: string, data: {
   stripeSubscriptionId?: string;
-  subscriptionStatus?: "active" | "inactive" | "past_due" | "canceled" | "trialing";
+  subscriptionStatus?: "active" | "inactive" | "past_due" | "canceled" | "trialing" | "suspended";
   subscriptionCurrentPeriodEnd?: Date | null;
 }) {
   try {
@@ -411,9 +424,21 @@ export async function recordLoginBonus(data: InsertLoginBonus) {
 export async function getTotalPoints(userId: number) {
   try {
     const db = await getDb();
-    if (!db) return 0;
-    const result = await db.select({ total: sql<number>`sum(pointsEarned)` }).from(loginBonuses).where(eq(loginBonuses.userId, userId));
-    return Number(result[0]?.total ?? 0);
+    if (!db) {
+      const taskPointsSum = mockTaskProgressStore
+        .filter(t => t.userId === userId)
+        .reduce((sum, curr) => sum + curr.pointsEarned, 0);
+      return mockUserPoints + taskPointsSum;
+    }
+    const loginResult = await db.select({ total: sql<number>`sum(pointsEarned)` }).from(loginBonuses).where(eq(loginBonuses.userId, userId));
+    const taskResult = await db.select({ total: sql<number>`sum(pointsEarned)` }).from(memberTaskProgress).where(eq(memberTaskProgress.userId, userId));
+    const transResult = await db.select({ total: sql<number>`sum(amount)` }).from(pointTransactions).where(eq(pointTransactions.userId, userId));
+    
+    const loginTotal = Number(loginResult[0]?.total ?? 0);
+    const taskTotal = Number(taskResult[0]?.total ?? 0);
+    const transTotal = Number(transResult[0]?.total ?? 0);
+    
+    return loginTotal + taskTotal + transTotal;
   } catch (e) {
     console.warn("[Database] Failed to get total points, returning 0:", e);
     return 0;
@@ -618,6 +643,156 @@ export async function getAllCohorts() {
   } catch (e) {
     console.warn("[Database] Failed to get cohorts, returning empty:", e);
     return [];
+  }
+}
+
+export async function isCohortArchived(cohortId: number) {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    const result = await db.select().from(cohorts).where(eq(cohorts.id, cohortId)).limit(1);
+    return !!result[0]?.isArchived;
+  } catch (e) {
+    console.warn("[Database] Failed to check if cohort is archived:", e);
+    return false;
+  }
+}
+
+// ─── Lesson Tasks & Transactions Helpers ─────────────────────────────────────
+export async function recordPointTransaction(userId: number, amount: number, type: string) {
+  try {
+    const db = await getDb();
+    if (!db) {
+      if (userId === 999) {
+        mockUserPoints += amount;
+      }
+      return;
+    }
+    await db.insert(pointTransactions).values({ userId, amount, type });
+  } catch (e) {
+    console.warn("[Database] Failed to record point transaction:", e);
+  }
+}
+
+export async function buyStreakFreeze(userId: number) {
+  const currentPoints = await getTotalPoints(userId);
+  if (currentPoints < 500) {
+    throw new Error("ポイントが不足しています (500ポイント必要です)");
+  }
+  
+  await recordPointTransaction(userId, -500, "streak_freeze_purchase");
+  
+  try {
+    const db = await getDb();
+    if (!db) {
+      if (userId === 999) {
+        mockStreakFreezesActive += 1;
+      }
+      return { success: true, streakFreezesActive: mockStreakFreezesActive };
+    }
+    const user = await getUserById(userId);
+    if (!user) throw new Error("ユーザーが見つかりません");
+    const currentFreezes = user.streakFreezesActive ?? 0;
+    await db.update(users).set({ streakFreezesActive: currentFreezes + 1 }).where(eq(users.id, userId));
+    return { success: true, streakFreezesActive: currentFreezes + 1 };
+  } catch (e) {
+    console.warn("[Database] Failed to buy streak freeze:", e);
+    throw e;
+  }
+}
+
+export async function getLessonTaskProgress(userId: number, lessonId: number) {
+  try {
+    const db = await getDb();
+    if (!db) {
+      return mockTaskProgressStore.filter(t => t.userId === userId && t.lessonId === lessonId);
+    }
+    return db.select().from(memberTaskProgress).where(and(eq(memberTaskProgress.userId, userId), eq(memberTaskProgress.lessonId, lessonId)));
+  } catch (e) {
+    console.warn("[Database] Failed to get lesson task progress:", e);
+    return [];
+  }
+}
+
+export async function toggleLessonTask(userId: number, lessonId: number, taskKey: string, points: number, completed: boolean) {
+  try {
+    const db = await getDb();
+    if (!db) {
+      if (completed) {
+        const exists = mockTaskProgressStore.some(t => t.userId === userId && t.lessonId === lessonId && t.taskKey === taskKey);
+        if (!exists) {
+          mockTaskProgressStore.push({ userId, lessonId, taskKey, pointsEarned: points });
+        }
+      } else {
+        const idx = mockTaskProgressStore.findIndex(t => t.userId === userId && t.lessonId === lessonId && t.taskKey === taskKey);
+        if (idx !== -1) mockTaskProgressStore.splice(idx, 1);
+      }
+      return { success: true };
+    }
+    
+    if (completed) {
+      const existing = await db.select().from(memberTaskProgress).where(and(
+        eq(memberTaskProgress.userId, userId),
+        eq(memberTaskProgress.lessonId, lessonId),
+        eq(memberTaskProgress.taskKey, taskKey)
+      )).limit(1);
+      if (existing.length === 0) {
+        await db.insert(memberTaskProgress).values({ userId, lessonId, taskKey, pointsEarned: points });
+      }
+    } else {
+      await db.delete(memberTaskProgress).where(and(
+        eq(memberTaskProgress.userId, userId),
+        eq(memberTaskProgress.lessonId, lessonId),
+        eq(memberTaskProgress.taskKey, taskKey)
+      ));
+    }
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to toggle lesson task:", e);
+    throw e;
+  }
+}
+
+export async function suspendUserSubscription(userId: number) {
+  try {
+    const db = await getDb();
+    if (!db) {
+      if (userId === 999) {
+        mockSubscriptionStatus = "suspended";
+        mockSuspensionsUsedCount += 1;
+      }
+      return { success: true };
+    }
+    
+    const user = await getUserById(userId);
+    if (!user) throw new Error("ユーザーが見つかりません");
+    if (user.suspensionsUsedCount >= 2) throw new Error("休会は契約期間中に最大2回までです");
+    
+    await db.update(users).set({
+      subscriptionStatus: "suspended",
+      suspensionsUsedCount: (user.suspensionsUsedCount ?? 0) + 1
+    }).where(eq(users.id, userId));
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to suspend subscription:", e);
+    throw e;
+  }
+}
+
+export async function resumeUserSubscription(userId: number) {
+  try {
+    const db = await getDb();
+    if (!db) {
+      if (userId === 999) {
+        mockSubscriptionStatus = "active";
+      }
+      return { success: true };
+    }
+    await db.update(users).set({ subscriptionStatus: "active" }).where(eq(users.id, userId));
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to resume subscription:", e);
+    throw e;
   }
 }
 
