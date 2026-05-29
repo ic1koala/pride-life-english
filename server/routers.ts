@@ -22,7 +22,8 @@ import {
 import { storagePut } from "./storage";
 import { PRIDE_LIFE_PRODUCT } from "./products";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" as any });
+const stripeKey = process.env.STRIPE_SECRET_KEY || "sk_test_51MockDummyKeyForLocalPreviewModeOnly";
+const stripe = new Stripe(stripeKey, { apiVersion: "2026-04-22.dahlia" as any });
 
 const LESSON_THEMES = [
   "Introducing Yourself with Pride","Talking About Your Identity","Expressing Feelings in English",
