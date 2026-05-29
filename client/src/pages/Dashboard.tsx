@@ -115,16 +115,16 @@ export default function Dashboard() {
 
           {/* 1. Brand Signboard Component (看板ロゴ風のコンポーネント) */}
           <div className="mb-6 rounded-2xl relative overflow-hidden pride-gradient p-[1px] shadow-2xl animate-fade-in border border-white/5">
-            <div className="bg-black/65 backdrop-blur-md rounded-[15px] px-6 py-5 text-center relative z-10">
-              <span className="text-[9px] font-extrabold tracking-[0.3em] text-pink-300 uppercase block mb-1">
+            <div className="bg-black/65 backdrop-blur-md rounded-[15px] px-6 py-7 text-center relative z-10">
+              <span className="text-[10px] font-extrabold tracking-[0.3em] text-pink-300 uppercase block mb-1.5">
                 ONLINE ENGLISH ACADEMY
               </span>
-              <h2 className="text-2xl sm:text-3.5xl font-black tracking-tight text-white select-none">
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300 drop-shadow-[0_2px_12px_rgba(236,72,153,0.3)] font-serif italic">
+              <h2 className="text-4xl sm:text-7xl font-black tracking-tight text-white select-none">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300 drop-shadow-[0_4px_24px_rgba(236,72,153,0.45)] font-serif italic py-1">
                   Pride Life English
                 </span>
               </h2>
-              <div className="h-[1px] w-20 bg-gradient-to-r from-transparent via-white/30 to-transparent mx-auto my-2.5" />
+              <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-white/30 to-transparent mx-auto my-3.5" />
               <p className="text-white/80 text-[11px] font-medium tracking-wide">
                 自分らしさを誇れる英語力を手に入れよう
               </p>
