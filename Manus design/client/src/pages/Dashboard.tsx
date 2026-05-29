@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BookOpen, Star, Flame, Trophy, Calendar, ChevronRight, ChevronLeft,
-  CheckCircle2, Lock, Play, Loader2,
+  CheckCircle2, Lock, Play, Loader2, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

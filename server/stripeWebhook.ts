@@ -2,7 +2,8 @@ import express from "express";
 import Stripe from "stripe";
 import { createNotification, getUserByEmail, updateUserSubscriptionByStripeCustomerId } from "./db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" as any });
+const stripeKey = process.env.STRIPE_SECRET_KEY || "sk_test_51MockDummyKeyForLocalPreviewModeOnly";
+const stripe = new Stripe(stripeKey, { apiVersion: "2026-04-22.dahlia" as any });
 
 export const stripeWebhookRouter = express.Router();
 
