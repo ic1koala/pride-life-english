@@ -31,6 +31,7 @@ let mockUserPoints = 120;
 let mockStreakFreezesActive = 0;
 let mockSuspensionsUsedCount = 0;
 let mockSubscriptionStatus = "active";
+let mockActiveCourse: "star" | "knowledge" = "star";
 const mockTaskProgressStore: Array<{ userId: number, lessonId: number, taskKey: string, pointsEarned: number }> = [];
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -103,6 +104,9 @@ const mockUser = {
   subscriptionCurrentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
   get streakFreezesActive() { return mockStreakFreezesActive; },
   get suspensionsUsedCount() { return mockSuspensionsUsedCount; },
+  get activeCourse() { return mockActiveCourse; },
+  semesterStartDate: new Date(),
+  semesterNumber: 1,
   createdAt: new Date(),
   updatedAt: new Date(),
   lastSignedIn: new Date(),
@@ -646,18 +650,6 @@ export async function getAllCohorts() {
   }
 }
 
-export async function getCohortById(id: number) {
-  try {
-    const db = await getDb();
-    if (!db) return undefined;
-    const result = await db.select().from(cohorts).where(eq(cohorts.id, id)).limit(1);
-    return result[0];
-  } catch (e) {
-    console.warn("[Database] Failed to get cohort by id, returning empty:", e);
-    return undefined;
-  }
-}
-
 export async function isCohortArchived(cohortId: number) {
   try {
     const db = await getDb();
@@ -765,46 +757,73 @@ export async function toggleLessonTask(userId: number, lessonId: number, taskKey
   }
 }
 
-export async function suspendUserSubscription(userId: number) {
+// DEPRECATED: 学期内の途中休会は廃止されました (rulebook.md §3)
+export async function suspendUserSubscription(_userId: number) {
+  throw new Error("学期内の途中休会は廃止されました。詳しくは設定画面をご確認ください。");
+}
+
+// DEPRECATED: 学期内の途中休会は廃止されました (rulebook.md §3)
+export async function resumeUserSubscription(_userId: number) {
+  throw new Error("学期内の途中休会は廃止されました。詳しくは設定画面をご確認ください。");
+}
+
+// ─── Course System (コース制度) ───────────────────────────────────────────────
+export async function switchCourse(userId: number, course: "star" | "knowledge") {
   try {
     const db = await getDb();
     if (!db) {
-      if (userId === 999) {
-        mockSubscriptionStatus = "suspended";
-        mockSuspensionsUsedCount += 1;
-      }
-      return { success: true };
+      if (userId === 999) mockActiveCourse = course;
+      return { success: true, activeCourse: course };
     }
-    
-    const user = await getUserById(userId);
-    if (!user) throw new Error("ユーザーが見つかりません");
-    if (user.suspensionsUsedCount >= 2) throw new Error("休会は契約期間中に最大2回までです");
-    
-    await db.update(users).set({
-      subscriptionStatus: "suspended",
-      suspensionsUsedCount: (user.suspensionsUsedCount ?? 0) + 1
-    }).where(eq(users.id, userId));
-    return { success: true };
+    await db.update(users).set({ activeCourse: course } as any).where(eq(users.id, userId));
+    return { success: true, activeCourse: course };
   } catch (e) {
-    console.warn("[Database] Failed to suspend subscription:", e);
+    console.warn("[Database] Failed to switch course:", e);
     throw e;
   }
 }
 
-export async function resumeUserSubscription(userId: number) {
+// ─── Semester System (学期契約制度) ───────────────────────────────────────────
+export function canRequestSemesterAction(semesterStartDate: Date | null): { inWindow: boolean; windowStart: Date; windowEnd: Date } {
+  const start = semesterStartDate ?? new Date();
+  // 申請ウィンドウ: 5ヶ月目の20日 ～ 6ヶ月目末日
+  const windowStart = new Date(start);
+  windowStart.setMonth(windowStart.getMonth() + 4); // 5ヶ月目 = +4
+  windowStart.setDate(20);
+  const windowEnd = new Date(start);
+  windowEnd.setMonth(windowEnd.getMonth() + 6); // 6ヶ月目末
+  windowEnd.setDate(0); // 月の最終日
+  windowEnd.setHours(23, 59, 59, 999);
+  const now = new Date();
+  return { inWindow: now >= windowStart && now <= windowEnd, windowStart, windowEnd };
+}
+
+export async function requestSemesterRest(userId: number) {
+  try {
+    const user = await getUserById(userId);
+    if (!user) throw new Error("ユーザーが見つかりません");
+    const { inWindow } = canRequestSemesterAction(user.semesterStartDate ?? null);
+    if (!inWindow) throw new Error("申請ウィンドウ期間外です。5ヶ月目20日〜6ヶ月目末日にのみ申請できます。");
+    // Mark subscription to cancel at period end (next semester won't auto-renew)
+    const db = await getDb();
+    if (!db) return { success: true, message: "次学期の休会申請が完了しました" };
+    await db.update(users).set({ subscriptionStatus: "canceled" as any }).where(eq(users.id, userId));
+    return { success: true, message: "次学期の休会申請が完了しました。過去のアーカイブは引き続きアクセス可能です。" };
+  } catch (e) {
+    console.warn("[Database] Failed to request semester rest:", e);
+    throw e;
+  }
+}
+
+export async function getCohortById(id: number) {
   try {
     const db = await getDb();
-    if (!db) {
-      if (userId === 999) {
-        mockSubscriptionStatus = "active";
-      }
-      return { success: true };
-    }
-    await db.update(users).set({ subscriptionStatus: "active" }).where(eq(users.id, userId));
-    return { success: true };
+    if (!db) return undefined;
+    const result = await db.select().from(cohorts).where(eq(cohorts.id, id)).limit(1);
+    return result[0];
   } catch (e) {
-    console.warn("[Database] Failed to resume subscription:", e);
-    throw e;
+    console.warn("[Database] Failed to get cohort by id, returning empty:", e);
+    return undefined;
   }
 }
 

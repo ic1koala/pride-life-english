@@ -64,6 +64,9 @@ export const appRouter = router({
         subscriptionStatus: user.subscriptionStatus,
         streakFreezesActive: user.streakFreezesActive,
         suspensionsUsedCount: user.suspensionsUsedCount,
+        activeCourse: (user as any).activeCourse ?? "star",
+        semesterStartDate: (user as any).semesterStartDate ?? user.createdAt,
+        semesterNumber: (user as any).semesterNumber ?? 1,
       };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -341,11 +344,11 @@ export const appRouter = router({
       let orderIndex = 1;
       for (let week = 1; week <= 24; week++) {
         const themeIdx = (week - 1) % LESSON_THEMES.length;
-        for (let day = 1; day <= 5; day++) {
+        for (let day = 1; day <= 4; day++) {
           await upsertLesson({
             weekNumber: week, dayNumber: day,
             title: `Week ${week} Day ${day}: ${LESSON_THEMES[themeIdx]}`,
-            description: `Lesson ${(week - 1) * 5 + day} of 120. Explore ${LESSON_THEMES[themeIdx]} with confidence and pride.`,
+            description: `Lesson ${(week - 1) * 4 + day} of 96. Explore ${LESSON_THEMES[themeIdx]} with confidence and pride.`,
             videoUrl: "", journalingPrompt: `${JOURNALING_PROMPTS[themeIdx]} (Week ${week}, Day ${day})`,
             speakingPrompt: `Practice saying: "${SPEAKING_PROMPTS[themeIdx]}"`,
             orderIndex, publishedAt: new Date(),
@@ -353,7 +356,7 @@ export const appRouter = router({
           orderIndex++;
         }
       }
-      return { seeded: 120 };
+      return { seeded: 96 };
     }),
     listLessons: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
@@ -362,7 +365,7 @@ export const appRouter = router({
     createLesson: protectedProcedure
       .input(z.object({
         weekNumber: z.number().min(1).max(24),
-        dayNumber: z.number().min(1).max(5),
+        dayNumber: z.number().min(1).max(4),
         title: z.string().min(1).max(256),
         description: z.string().optional(),
         videoUrl: z.string().optional(),
@@ -372,7 +375,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const orderIndex = (input.weekNumber - 1) * 5 + input.dayNumber;
+        const orderIndex = (input.weekNumber - 1) * 4 + input.dayNumber;
         const lesson = await createLesson({
           weekNumber: input.weekNumber,
           dayNumber: input.dayNumber,
@@ -390,7 +393,7 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         weekNumber: z.number().min(1).max(24).optional(),
-        dayNumber: z.number().min(1).max(5).optional(),
+        dayNumber: z.number().min(1).max(4).optional(),
         title: z.string().min(1).max(256).optional(),
         description: z.string().optional(),
         videoUrl: z.string().optional(),
@@ -414,7 +417,7 @@ export const appRouter = router({
           const existing = await getLessonById(id);
           const w = fields.weekNumber ?? existing?.weekNumber ?? 1;
           const d = fields.dayNumber ?? existing?.dayNumber ?? 1;
-          updateData.orderIndex = (w - 1) * 5 + d;
+          updateData.orderIndex = (w - 1) * 4 + d;
         }
         if (publish !== undefined) updateData.publishedAt = publish ? new Date() : null;
         await updateLesson(id, updateData);
@@ -444,41 +447,51 @@ export const appRouter = router({
   }),
 
   subscription: router({
-    suspend: memberProcedure.mutation(async ({ ctx }) => {
-      const { getUserById, suspendUserSubscription } = await import("./db");
-      const user = await getUserById(ctx.user.id);
-      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-      
-      if (user.stripeSubscriptionId) {
-        try {
-          const { stripe } = await import("./_core/stripe");
-          await stripe.subscriptions.update(user.stripeSubscriptionId, {
-            pause_collection: { behavior: "keep_as_draft" },
-          });
-        } catch (e) {
-          console.warn("[Stripe] Failed to pause collection, proceeding locally:", e);
-        }
-      }
-      
-      return suspendUserSubscription(ctx.user.id);
+    suspend: memberProcedure.mutation(async () => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "学期内の途中休会は廃止されました。詳しくは設定画面をご確認ください。" });
     }),
-    resume: memberProcedure.mutation(async ({ ctx }) => {
-      const { getUserById, resumeUserSubscription } = await import("./db");
+    resume: memberProcedure.mutation(async () => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "学期内の途中休会は廃止されました。詳しくは設定画面をご確認ください。" });
+    }),
+    switchCourse: memberProcedure
+      .input(z.object({ course: z.enum(["star", "knowledge"]) }))
+      .mutation(async ({ ctx, input }) => {
+        const { switchCourse } = await import("./db");
+        return switchCourse(ctx.user.id, input.course);
+      }),
+    semesterStatus: memberProcedure.query(async ({ ctx }) => {
+      const { getUserById, canRequestSemesterAction } = await import("./db");
       const user = await getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      const semesterStart = (user as any).semesterStartDate ?? user.createdAt;
+      const { inWindow, windowStart, windowEnd } = canRequestSemesterAction(semesterStart);
+      return {
+        semesterNumber: (user as any).semesterNumber ?? 1,
+        semesterStartDate: semesterStart,
+        inWindow,
+        windowStart,
+        windowEnd,
+        activeCourse: (user as any).activeCourse ?? "star",
+      };
+    }),
+    requestRest: memberProcedure.mutation(async ({ ctx }) => {
+      const { requestSemesterRest } = await import("./db");
+      const result = await requestSemesterRest(ctx.user.id);
       
-      if (user.stripeSubscriptionId) {
+      // Also attempt to set cancel_at_period_end on Stripe
+      const { getUserById } = await import("./db");
+      const user = await getUserById(ctx.user.id);
+      if (user?.stripeSubscriptionId) {
         try {
-          const { stripe } = await import("./_core/stripe");
           await stripe.subscriptions.update(user.stripeSubscriptionId, {
-            pause_collection: null,
+            cancel_at_period_end: true,
           });
         } catch (e) {
-          console.warn("[Stripe] Failed to resume collection, proceeding locally:", e);
+          console.warn("[Stripe] Failed to set cancel_at_period_end:", e);
         }
       }
       
-      return resumeUserSubscription(ctx.user.id);
+      return result;
     }),
   }),
 });

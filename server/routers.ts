@@ -64,6 +64,9 @@ export const appRouter = router({
         subscriptionStatus: user.subscriptionStatus,
         streakFreezesActive: user.streakFreezesActive,
         suspensionsUsedCount: user.suspensionsUsedCount,
+        activeCourse: (user as any).activeCourse ?? "star",
+        semesterStartDate: (user as any).semesterStartDate ?? user.createdAt,
+        semesterNumber: (user as any).semesterNumber ?? 1,
       };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -444,41 +447,51 @@ export const appRouter = router({
   }),
 
   subscription: router({
-    suspend: memberProcedure.mutation(async ({ ctx }) => {
-      const { getUserById, suspendUserSubscription } = await import("./db");
-      const user = await getUserById(ctx.user.id);
-      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-      
-      if (user.stripeSubscriptionId) {
-        try {
-          const { stripe } = await import("./_core/stripe");
-          await stripe.subscriptions.update(user.stripeSubscriptionId, {
-            pause_collection: { behavior: "keep_as_draft" },
-          });
-        } catch (e) {
-          console.warn("[Stripe] Failed to pause collection, proceeding locally:", e);
-        }
-      }
-      
-      return suspendUserSubscription(ctx.user.id);
+    suspend: memberProcedure.mutation(async () => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "学期内の途中休会は廃止されました。詳しくは設定画面をご確認ください。" });
     }),
-    resume: memberProcedure.mutation(async ({ ctx }) => {
-      const { getUserById, resumeUserSubscription } = await import("./db");
+    resume: memberProcedure.mutation(async () => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "学期内の途中休会は廃止されました。詳しくは設定画面をご確認ください。" });
+    }),
+    switchCourse: memberProcedure
+      .input(z.object({ course: z.enum(["star", "knowledge"]) }))
+      .mutation(async ({ ctx, input }) => {
+        const { switchCourse } = await import("./db");
+        return switchCourse(ctx.user.id, input.course);
+      }),
+    semesterStatus: memberProcedure.query(async ({ ctx }) => {
+      const { getUserById, canRequestSemesterAction } = await import("./db");
       const user = await getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      const semesterStart = (user as any).semesterStartDate ?? user.createdAt;
+      const { inWindow, windowStart, windowEnd } = canRequestSemesterAction(semesterStart);
+      return {
+        semesterNumber: (user as any).semesterNumber ?? 1,
+        semesterStartDate: semesterStart,
+        inWindow,
+        windowStart,
+        windowEnd,
+        activeCourse: (user as any).activeCourse ?? "star",
+      };
+    }),
+    requestRest: memberProcedure.mutation(async ({ ctx }) => {
+      const { requestSemesterRest } = await import("./db");
+      const result = await requestSemesterRest(ctx.user.id);
       
-      if (user.stripeSubscriptionId) {
+      // Also attempt to set cancel_at_period_end on Stripe
+      const { getUserById } = await import("./db");
+      const user = await getUserById(ctx.user.id);
+      if (user?.stripeSubscriptionId) {
         try {
-          const { stripe } = await import("./_core/stripe");
           await stripe.subscriptions.update(user.stripeSubscriptionId, {
-            pause_collection: null,
+            cancel_at_period_end: true,
           });
         } catch (e) {
-          console.warn("[Stripe] Failed to resume collection, proceeding locally:", e);
+          console.warn("[Stripe] Failed to set cancel_at_period_end:", e);
         }
       }
       
-      return resumeUserSubscription(ctx.user.id);
+      return result;
     }),
   }),
 });

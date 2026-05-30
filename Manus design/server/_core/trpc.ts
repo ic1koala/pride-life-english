@@ -27,13 +27,13 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
-// memberProcedure: requires active/suspended subscription OR admin role
+// memberProcedure: requires active subscription OR admin role
 const requireActiveMember = t.middleware(async opts => {
   const { ctx, next } = opts;
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
   }
-  if (ctx.user.role !== "admin" && ctx.user.subscriptionStatus !== "active" && ctx.user.subscriptionStatus !== "suspended") {
+  if (ctx.user.role !== "admin" && ctx.user.subscriptionStatus !== "active") {
     throw new TRPCError({ code: "FORBIDDEN", message: "subscription_required" });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });

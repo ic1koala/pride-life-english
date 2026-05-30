@@ -107,9 +107,19 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/15">
-              <Sparkles size={12} className="text-amber-300 animate-spin-slow" />
-              <span className="text-xs font-bold text-white tracking-wide">Pride Life English</span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/15">
+                <Sparkles size={12} className="text-amber-300 animate-spin-slow" />
+                <span className="text-xs font-bold text-white tracking-wide">Pride Life English</span>
+              </div>
+              <div className={cn(
+                "px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-md border",
+                (profileData?.activeCourse ?? "star") === "star"
+                  ? "bg-amber-500/20 text-amber-200 border-amber-400/30"
+                  : "bg-sky-500/20 text-sky-200 border-sky-400/30"
+              )}>
+                {(profileData?.activeCourse ?? "star") === "star" ? "☆コース" : "Knowledge"}
+              </div>
             </div>
           </div>
 

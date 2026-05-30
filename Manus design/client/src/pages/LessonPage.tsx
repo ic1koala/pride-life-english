@@ -153,6 +153,8 @@ export default function LessonPage() {
   const { data: lesson, isLoading } = trpc.lessons.byId.useQuery({ id: lessonId });
   const { data: myProgress } = trpc.progress.lessonProgress.useQuery({ lessonId });
   const { data: taskProgress, refetch: refetchTasks } = trpc.lessons.taskProgress.useQuery({ lessonId });
+  const { data: profileData } = trpc.auth.profile.useQuery();
+  const activeCourse = profileData?.activeCourse ?? "star";
 
   const [journalText, setJournalText] = useState("");
   const [journalSaved, setJournalSaved] = useState(false);
@@ -245,15 +247,15 @@ export default function LessonPage() {
 
   // 9 Daily Lesson Tasks Definition
   const LESSON_TASKS = [
-    { key: "word", label: "単語練習", points: 40, skills: "◇ L&R / ○ Idea / ☆ Master" },
-    { key: "video", label: "動画を見る", points: 20, skills: "□ 知識 / ◇ L&R / ○ Idea / ☆ Master" },
-    { key: "journal", label: "ジャーナリング", points: 60, skills: "○ Idea / ☆ Master" },
-    { key: "copying", label: "添削音読筆写", points: 80, skills: "◇ L&R / ○ Idea / ☆ Master" },
-    { key: "reading", label: "なりきり音読", points: 80, skills: "◇ L&R / ○ Idea / ☆ Master" },
-    { key: "read_lookup", label: "Read & Look up", points: 80, skills: "◇ L&R / ○ Idea / ☆ Master" },
-    { key: "recitation", label: "スラスラ暗唱", points: 80, skills: "☆ Master" },
-    { key: "reading_jp", label: "なりきり音読日本語", points: 40, skills: "◇ L&R" },
-    { key: "reading_en", label: "なりきり音読英語", points: 40, skills: "◇ L&R" },
+    { key: "word", label: "単語練習", points: 40, skills: "◇ L&R / ○ Idea / ☆ Master", knowledgeOk: false },
+    { key: "video", label: "動画を見る", points: 20, skills: "□ 知識 / ◇ L&R / ○ Idea / ☆ Master", knowledgeOk: true },
+    { key: "journal", label: "ジャーナリング", points: 60, skills: "○ Idea / ☆ Master", knowledgeOk: false },
+    { key: "copying", label: "添削音読筆写", points: 80, skills: "◇ L&R / ○ Idea / ☆ Master", knowledgeOk: false },
+    { key: "reading", label: "なりきり音読", points: 80, skills: "◇ L&R / ○ Idea / ☆ Master", knowledgeOk: false },
+    { key: "read_lookup", label: "Read & Look up", points: 80, skills: "◇ L&R / ○ Idea / ☆ Master", knowledgeOk: false },
+    { key: "recitation", label: "スラスラ暗唱", points: 80, skills: "☆ Master", knowledgeOk: false },
+    { key: "reading_jp", label: "なりきり音読日本語", points: 40, skills: "◇ L&R", knowledgeOk: false },
+    { key: "reading_en", label: "なりきり音読英語", points: 40, skills: "◇ L&R", knowledgeOk: false },
   ];
 
   const completedCount = taskProgress?.length ?? 0;
@@ -324,44 +326,57 @@ export default function LessonPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {LESSON_TASKS.map((task) => {
               const done = isTaskCompleted(task.key);
+              const isLocked = activeCourse === "knowledge" && !task.knowledgeOk;
               return (
                 <button
                   key={task.key}
-                  onClick={() => handleToggleTask(task.key, task.points)}
-                  disabled={toggleTaskMutation.isPending}
+                  onClick={() => !isLocked && handleToggleTask(task.key, task.points)}
+                  disabled={toggleTaskMutation.isPending || isLocked}
                   className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border text-left transition-all duration-200 hover:border-primary/40",
-                    done
-                      ? "bg-emerald-500/5 border-emerald-500/30 shadow-sm"
-                      : "bg-background border-border"
+                    "flex items-center justify-between p-3 rounded-xl border text-left transition-all duration-200",
+                    isLocked
+                      ? "bg-muted/30 border-border/50 opacity-60 cursor-not-allowed"
+                      : done
+                        ? "bg-emerald-500/5 border-emerald-500/30 shadow-sm hover:border-primary/40"
+                        : "bg-background border-border hover:border-primary/40"
                   )}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className={cn(
                         "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                        done
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-muted-foreground/30"
+                        isLocked
+                          ? "border-muted-foreground/20 bg-muted/50"
+                          : done
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-muted-foreground/30"
                       )}
                     >
-                      {done && <CheckCircle2 size={12} className="stroke-[3]" />}
+                      {done && !isLocked && <CheckCircle2 size={12} className="stroke-[3]" />}
+                      {isLocked && <span className="text-[8px] text-muted-foreground">🔒</span>}
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-foreground leading-tight">
+                      <p className={cn("text-xs font-bold leading-tight", isLocked ? "text-muted-foreground" : "text-foreground")}>
                         {task.label}
                       </p>
-                      <p className="text-[9px] text-muted-foreground leading-none mt-0.5">
-                        {task.skills}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[9px] text-muted-foreground leading-none mt-0.5">
+                          {task.skills}
+                        </p>
+                        {isLocked && (
+                          <span className="text-[8px] font-bold bg-amber-100 text-amber-700 px-1 py-0 rounded">☆コースのみ</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <span
                     className={cn(
                       "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                      done
-                        ? "bg-emerald-500/10 text-emerald-600"
-                        : "bg-muted text-muted-foreground"
+                      isLocked
+                        ? "bg-muted/50 text-muted-foreground/50"
+                        : done
+                          ? "bg-emerald-500/10 text-emerald-600"
+                          : "bg-muted text-muted-foreground"
                     )}
                   >
                     +{task.points} pt

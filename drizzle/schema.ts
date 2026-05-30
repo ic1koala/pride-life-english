@@ -32,6 +32,10 @@ export const users = mysqlTable("users", {
   subscriptionCurrentPeriodEnd: timestamp("subscriptionCurrentPeriodEnd"),
   streakFreezesActive: int("streakFreezesActive").default(0).notNull(),
   suspensionsUsedCount: int("suspensionsUsedCount").default(0).notNull(),
+  // Course & Semester system
+  activeCourse: mysqlEnum("activeCourse", ["star", "knowledge"]).default("star").notNull(),
+  semesterStartDate: timestamp("semesterStartDate"),
+  semesterNumber: int("semesterNumber").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
