@@ -369,6 +369,47 @@ export const appRouter = router({
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
       return getMemberProgressSummary(input.userId);
     }),
+    leaderboard: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+      const usersList = await getAllUsers();
+      const leaderboardData = await Promise.all(usersList.map(async (u) => {
+        const progress = await getMemberProgressSummary(u.id);
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          subscriptionStatus: u.subscriptionStatus,
+          role: u.role,
+          createdAt: u.createdAt,
+          avatarUrl: (u as any).avatarUrl ?? null,
+          ...progress
+        };
+      }));
+      return leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
+    }),
+    sendGlobalNotification: protectedProcedure
+      .input(z.object({
+        title: z.string(),
+        message: z.string(),
+        type: z.enum(["login_bonus", "new_lesson", "payment_failed", "milestone", "general"])
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const usersList = await getAllUsers();
+        let count = 0;
+        for (const user of usersList) {
+          if (user.role !== "admin") {
+            await createNotification({
+              userId: user.id,
+              type: input.type,
+              title: input.title,
+              message: input.message
+            });
+            count++;
+          }
+        }
+        return { success: true, count };
+      }),
     updateSubscription: protectedProcedure
       .input(z.object({ userId: z.number(), status: z.enum(["active", "inactive", "past_due", "canceled", "trialing"]) }))
       .mutation(async ({ ctx, input }) => {

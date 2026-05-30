@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
   Shield, Users, Search, TrendingUp, CheckCircle2, Loader2, BookOpen,
-  Plus, Pencil, Trash2, Eye, EyeOff, HelpCircle,
+  Plus, Pencil, Trash2, Eye, EyeOff, HelpCircle, Trophy, Bell, Send,
+  Flame, Star, Award, AlertTriangle, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +82,13 @@ export default function AdminPage() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [activeTerm, setActiveTerm] = useState<"term1" | "term2" | "term3">("term1");
   const [isMaximized, setIsMaximized] = useState(false);
+  
+  // Notification form states
+  const [notifyTitle, setNotifyTitle] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [notifyType, setNotifyType] = useState<"general" | "new_lesson" | "login_bonus" | "payment_failed">("general");
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [leaderboardSearch, setLeaderboardSearch] = useState("");
 
   // ─── Members data ───────────────────────────────────────────────────────────
   const { data: members, isLoading } = trpc.admin.members.useQuery();
@@ -97,6 +105,22 @@ export default function AdminPage() {
   const seedLessons = trpc.admin.seedLessons.useMutation({
     onSuccess: (d) => { toast.success(`${d.seeded} lessons seeded!`); utils.admin.listLessons.invalidate(); },
     onError: (err) => toast.error(err.message),
+  });
+
+  // ─── Leaderboard & Notification data ─────────────────────────────────────────
+  const { data: leaderboard, isLoading: leaderboardLoading } = trpc.admin.leaderboard.useQuery();
+
+  const sendGlobalNotificationMut = trpc.admin.sendGlobalNotification.useMutation({
+    onSuccess: (res) => {
+      toast.success(`全体お知らせを一斉配信しました！計 ${res.count} 名の受講生に送信されました。`);
+      setNotifyTitle("");
+      setNotifyMessage("");
+      setNotifyType("general");
+      setConfirmSend(false);
+    },
+    onError: (err) => {
+      toast.error(err.message || "お知らせの配信に失敗しました。");
+    }
   });
 
   // ─── Lessons data ───────────────────────────────────────────────────────────
@@ -156,6 +180,11 @@ export default function AdminPage() {
   const activeCount = members?.filter((m) => m.subscriptionStatus === "active").length ?? 0;
   const totalCount = members?.length ?? 0;
   const publishedCount = allLessons?.filter((l) => l.publishedAt).length ?? 0;
+  const filteredLeaderboard = leaderboard?.filter((user) =>
+    !leaderboardSearch ||
+    user.name?.toLowerCase().includes(leaderboardSearch.toLowerCase()) ||
+    user.email?.toLowerCase().includes(leaderboardSearch.toLowerCase())
+  ) ?? [];
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const openCreateDialog = () => {
@@ -229,6 +258,12 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="lessons" className="gap-2">
             <BookOpen size={16} /> Lessons
+          </TabsTrigger>
+          <TabsTrigger value="leaderboard" className="gap-2">
+            <Trophy size={16} /> Leaderboard
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-2">
+            <Bell size={16} /> Broadcast
           </TabsTrigger>
         </TabsList>
 
@@ -518,6 +553,488 @@ export default function AdminPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* LEADERBOARD TAB                                                       */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="leaderboard" className="space-y-6 mt-6">
+          {/* Header block with search */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-2xl font-bold text-foreground">ポイント＆ストリーク監査ランキング</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">受講生のアクティビティ・エンゲージメントレベルを監査します</p>
+            </div>
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={leaderboardSearch}
+                onChange={(e) => setLeaderboardSearch(e.target.value)}
+                placeholder="受講生を検索..."
+                className="pl-9 rounded-xl h-9 w-64 bg-background"
+              />
+            </div>
+          </div>
+
+          {/* Loading Skeleton */}
+          {leaderboardLoading ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto py-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="premium-card rounded-2xl p-6 text-center shadow-md space-y-4">
+                    <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+                    <Skeleton className="h-4 w-24 mx-auto" />
+                    <Skeleton className="h-3 w-32 mx-auto" />
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <Skeleton className="h-10 rounded-xl" />
+                      <Skeleton className="h-10 rounded-xl" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="premium-card rounded-2xl overflow-hidden">
+                <div className="h-10 bg-muted/40 border-b border-border" />
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="p-4 border-b border-border flex items-center justify-between">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Podium Display (Hidden when search query is active to keep UI neat) */}
+              {!leaderboardSearch && filteredLeaderboard.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end max-w-4xl mx-auto py-8">
+                  {/* 2nd Place */}
+                  {filteredLeaderboard[1] && (
+                    <div className="order-2 md:order-1 premium-card border-slate-300/30 bg-gradient-to-b from-slate-500/[0.02] to-slate-500/[0.06] rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 relative group border-t-4 border-t-slate-400">
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-slate-400 text-white font-bold flex items-center justify-center text-sm shadow-md">
+                        2
+                      </div>
+                      <div className="flex flex-col items-center mt-2">
+                        <span className="text-4xl mb-2">🥈</span>
+                        <div className="w-16 h-16 rounded-full pride-gradient flex items-center justify-center text-white text-xl font-bold shadow-inner group-hover:scale-105 transition-transform duration-300 mb-3 overflow-hidden">
+                          {filteredLeaderboard[1].avatarUrl ? (
+                            <img src={filteredLeaderboard[1].avatarUrl} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            (filteredLeaderboard[1].name ?? "?").charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <h3 className="font-serif font-bold text-base text-foreground truncate max-w-full">{filteredLeaderboard[1].name ?? "—"}</h3>
+                        <p className="text-xs text-muted-foreground truncate max-w-full mb-4">{filteredLeaderboard[1].email}</p>
+                        
+                        <div className="w-full h-px bg-border my-3" />
+                        
+                        <div className="grid grid-cols-2 gap-2 w-full text-left">
+                          <div className="text-center bg-muted/30 p-2 rounded-xl">
+                            <div className="text-[10px] text-muted-foreground font-bold flex items-center justify-center gap-1">
+                              <Star size={10} className="text-slate-400 fill-slate-400" /> Points
+                            </div>
+                            <div className="text-sm font-extrabold text-foreground mt-0.5">{filteredLeaderboard[1].totalPoints}</div>
+                          </div>
+                          <div className="text-center bg-muted/30 p-2 rounded-xl">
+                            <div className="text-[10px] text-muted-foreground font-bold flex items-center justify-center gap-0.5">
+                              <Flame size={10} className={cn(filteredLeaderboard[1].streak > 0 ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} /> Streak
+                            </div>
+                            <div className="text-sm font-extrabold text-foreground mt-0.5">{filteredLeaderboard[1].streak}日</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 1st Place */}
+                  {filteredLeaderboard[0] && (
+                    <div className="order-1 md:order-2 premium-card border-amber-500/30 bg-gradient-to-b from-amber-500/[0.03] to-amber-500/[0.08] rounded-2xl p-7 text-center shadow-2xl hover:shadow-3xl transition-all duration-300 relative group md:scale-105 z-10 border-t-4 border-t-amber-500">
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-amber-500 text-white font-bold flex items-center justify-center text-base shadow-lg animate-bounce">
+                        1
+                      </div>
+                      <div className="flex flex-col items-center mt-2">
+                        <span className="text-5xl mb-2 animate-pulse">🥇</span>
+                        <div className="w-20 h-20 rounded-full pride-gradient flex items-center justify-center text-white text-2xl font-bold shadow-inner ring-4 ring-amber-500/20 group-hover:scale-105 transition-transform duration-300 mb-3 relative overflow-hidden">
+                          {filteredLeaderboard[0].avatarUrl ? (
+                            <img src={filteredLeaderboard[0].avatarUrl} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            (filteredLeaderboard[0].name ?? "?").charAt(0).toUpperCase()
+                          )}
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center text-white">
+                            <Award size={12} className="fill-white" />
+                          </div>
+                        </div>
+                        <h3 className="font-serif font-bold text-lg text-foreground truncate max-w-full">{filteredLeaderboard[0].name ?? "—"}</h3>
+                        <p className="text-xs text-muted-foreground truncate max-w-full mb-4">{filteredLeaderboard[0].email}</p>
+                        
+                        <div className="w-full h-px bg-amber-500/10 my-3" />
+                        
+                        <div className="grid grid-cols-2 gap-2 w-full text-left">
+                          <div className="text-center bg-amber-500/5 p-2 rounded-xl border border-amber-500/10">
+                            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center justify-center gap-1">
+                              <Star size={10} className="text-amber-500 fill-amber-500 animate-pulse" /> Points
+                            </div>
+                            <div className="text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">{filteredLeaderboard[0].totalPoints}</div>
+                          </div>
+                          <div className="text-center bg-amber-500/5 p-2 rounded-xl border border-amber-500/10">
+                            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center justify-center gap-0.5">
+                              <Flame size={10} className="text-orange-500 fill-orange-500 animate-bounce" /> Streak
+                            </div>
+                            <div className="text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">{filteredLeaderboard[0].streak}日</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3rd Place */}
+                  {filteredLeaderboard[2] && (
+                    <div className="order-3 md:order-3 premium-card border-amber-700/30 bg-gradient-to-b from-amber-700/[0.02] to-amber-700/[0.06] rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition-all duration-300 relative group border-t-4 border-t-amber-700">
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-amber-700 text-white font-bold flex items-center justify-center text-sm shadow-md">
+                        3
+                      </div>
+                      <div className="flex flex-col items-center mt-2">
+                        <span className="text-4xl mb-2">🥉</span>
+                        <div className="w-16 h-16 rounded-full pride-gradient flex items-center justify-center text-white text-xl font-bold shadow-inner group-hover:scale-105 transition-transform duration-300 mb-3 overflow-hidden">
+                          {filteredLeaderboard[2].avatarUrl ? (
+                            <img src={filteredLeaderboard[2].avatarUrl} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            (filteredLeaderboard[2].name ?? "?").charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <h3 className="font-serif font-bold text-base text-foreground truncate max-w-full">{filteredLeaderboard[2].name ?? "—"}</h3>
+                        <p className="text-xs text-muted-foreground truncate max-w-full mb-4">{filteredLeaderboard[2].email}</p>
+                        
+                        <div className="w-full h-px bg-border my-3" />
+                        
+                        <div className="grid grid-cols-2 gap-2 w-full text-left">
+                          <div className="text-center bg-muted/30 p-2 rounded-xl">
+                            <div className="text-[10px] text-muted-foreground font-bold flex items-center justify-center gap-1">
+                              <Star size={10} className="text-amber-700 fill-amber-700" /> Points
+                            </div>
+                            <div className="text-sm font-extrabold text-foreground mt-0.5">{filteredLeaderboard[2].totalPoints}</div>
+                          </div>
+                          <div className="text-center bg-muted/30 p-2 rounded-xl">
+                            <div className="text-[10px] text-muted-foreground font-bold flex items-center justify-center gap-0.5">
+                              <Flame size={10} className={cn(filteredLeaderboard[2].streak > 0 ? "text-orange-500 fill-orange-500" : "text-muted-foreground")} /> Streak
+                            </div>
+                            <div className="text-sm font-extrabold text-foreground mt-0.5">{filteredLeaderboard[2].streak}日</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Detailed Leaderboard List Table */}
+              <div className="premium-card rounded-2xl overflow-hidden mt-6 shadow-sm border border-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-center text-xs font-bold text-muted-foreground px-4 py-3.5 w-16">Rank</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground px-5 py-3.5">Member</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground px-5 py-3.5">Completed Lessons</th>
+                        <th className="text-center text-xs font-bold text-muted-foreground px-4 py-3.5 w-32">Streak</th>
+                        <th className="text-right text-xs font-bold text-muted-foreground px-5 py-3.5 w-32">Points</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground px-5 py-3.5 w-44">Badges</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeaderboard.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                            該当する受講生が見つかりません。
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredLeaderboard.map((user, idx) => {
+                          const rank = idx + 1;
+                          const termProgressPercent = Math.min(100, Math.round(((user.completed ?? 0) / 288) * 100));
+
+                          return (
+                            <tr key={user.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                              <td className="px-4 py-3.5 text-center font-bold">
+                                {rank === 1 ? (
+                                  <span className="text-xl" title="1位">🥇</span>
+                                ) : rank === 2 ? (
+                                  <span className="text-xl" title="2位">🥈</span>
+                                ) : rank === 3 ? (
+                                  <span className="text-xl" title="3位">🥉</span>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">#{rank}</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-full pride-gradient flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm overflow-hidden">
+                                    {user.avatarUrl ? (
+                                      <img src={user.avatarUrl} className="w-full h-full object-cover" alt="" />
+                                    ) : (
+                                      (user.name ?? "?").charAt(0).toUpperCase()
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-sm font-bold text-foreground leading-none">{user.name ?? "—"}</p>
+                                      {user.role === "admin" && (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-900/60">
+                                          Admin
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">{user.email ?? "—"}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <div className="space-y-1.5 max-w-[200px]">
+                                  <div className="flex items-center justify-between text-xs font-semibold">
+                                    <span className="text-foreground">{user.completed ?? 0} / 288 lessons</span>
+                                    <span className="text-muted-foreground">{termProgressPercent}%</span>
+                                  </div>
+                                  <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className="absolute inset-y-0 left-0 pride-gradient rounded-full"
+                                      style={{ width: `${termProgressPercent}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                {user.streak > 0 ? (
+                                  <div className="inline-flex items-center gap-1 bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold border border-orange-200/50 dark:border-orange-900/30">
+                                    <Flame size={12} className="fill-orange-500 text-orange-500 animate-pulse" />
+                                    <span>{user.streak}日継続</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground font-medium">0日</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 text-right font-extrabold text-sm text-foreground">
+                                <div className="inline-flex items-center gap-1">
+                                  <Star size={13} className="text-amber-500 fill-amber-500" />
+                                  <span>{user.totalPoints} <span className="text-[10px] text-muted-foreground font-bold">pts</span></span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                {user.milestones && user.milestones.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {user.milestones.slice(0, 3).map((m: any) => (
+                                      <span
+                                        key={m.id}
+                                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-primary/5 text-primary border border-primary/20"
+                                        title={m.badgeLabel}
+                                      >
+                                        {m.badgeLabel}
+                                      </span>
+                                    ))}
+                                    {user.milestones.length > 3 && (
+                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                        +{user.milestones.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground font-medium">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* BROADCAST TAB                                                         */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="notifications" className="space-y-6 mt-6">
+          <div>
+            <h2 className="font-serif text-2xl font-bold text-foreground">全体お知らせプッシュ機能 (Broadcast)</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">PLEアカデミーの全受講生（管理者を除く）に、リアルタイムでお知らせを配信します</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Form Column */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="premium-card rounded-2xl p-6 space-y-4 border border-border shadow-sm">
+                <div className="space-y-2">
+                  <Label htmlFor="notify-title" className="text-xs font-bold text-foreground">お知らせタイトル (Title) *</Label>
+                  <Input
+                    id="notify-title"
+                    value={notifyTitle}
+                    onChange={(e) => setNotifyTitle(e.target.value)}
+                    placeholder="例: 【お知らせ】第1期（Term 1）修了バッジの贈呈について"
+                    maxLength={100}
+                    className="rounded-xl border border-input focus-visible:ring-primary"
+                  />
+                  <p className="text-[10px] text-muted-foreground text-right">{notifyTitle.length}/100文字</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="notify-message" className="text-xs font-bold text-foreground">お知らせ本文 (Message Body) *</Label>
+                  <Textarea
+                    id="notify-message"
+                    value={notifyMessage}
+                    onChange={(e) => setNotifyMessage(e.target.value)}
+                    placeholder="受講生のベル通知ドロワーに表示される詳細テキストを記入してください。改行もそのまま保存されます。"
+                    rows={6}
+                    maxLength={1000}
+                    className="rounded-xl border border-input focus-visible:ring-primary min-h-[120px]"
+                  />
+                  <p className="text-[10px] text-muted-foreground text-right">{notifyMessage.length}/1000文字</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-foreground">お知らせのカテゴリー (Category)</Label>
+                    <Select
+                      value={notifyType}
+                      onValueChange={(val: any) => setNotifyType(val)}
+                    >
+                      <SelectTrigger className="rounded-xl border border-input h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">📢 一般告知 (General Info)</SelectItem>
+                        <SelectItem value="new_lesson">📚 新規レッスン公開 (Curriculum)</SelectItem>
+                        <SelectItem value="login_bonus">🔥 ストリーク・継続ボーナス (Activity)</SelectItem>
+                        <SelectItem value="payment_failed">⚠️ アカウント・決済関連 (Alert)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="w-full h-px bg-border my-2" />
+
+                {/* Safety Checkbox */}
+                <div className="flex items-start gap-3 bg-destructive/5 dark:bg-destructive/10 p-3.5 rounded-xl border border-destructive/20 transition-all duration-200">
+                  <input
+                    type="checkbox"
+                    id="confirm-send-box"
+                    checked={confirmSend}
+                    onChange={(e) => setConfirmSend(e.target.checked)}
+                    className="mt-1 h-4.5 w-4.5 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                  />
+                  <Label htmlFor="confirm-send-box" className="cursor-pointer text-[11px] font-bold text-destructive leading-relaxed select-none">
+                    【配信確認】送信ボタンを押すと、全受講生のアカウントに即時プッシュ通知が発行されます。送信後の取り消しはできないことを確認しました。
+                  </Label>
+                </div>
+
+                {/* Send Button */}
+                <Button
+                  onClick={() => sendGlobalNotificationMut.mutate({
+                    title: notifyTitle,
+                    message: notifyMessage,
+                    type: notifyType as any
+                  })}
+                  disabled={
+                    !notifyTitle.trim() ||
+                    !notifyMessage.trim() ||
+                    !confirmSend ||
+                    sendGlobalNotificationMut.isPending
+                  }
+                  className="w-full rounded-xl pride-gradient text-white h-11 text-sm font-bold gap-2 shadow-lg shadow-primary/20 hover:brightness-105 active:scale-[0.99] transition-all duration-150"
+                >
+                  {sendGlobalNotificationMut.isPending ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      お知らせを配信中...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={15} />
+                      全体へお知らせを一斉配信する
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Preview Column */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground px-1">
+                <Eye size={13} className="text-primary animate-pulse" />
+                <span>受講生画面での表示プレビュー (Live Push Preview)</span>
+              </div>
+
+              {/* Push Notification Drawer Mock */}
+              <div className="premium-card rounded-2xl p-5 border border-primary/10 bg-gradient-to-br from-background via-background to-primary/[0.01] shadow-lg max-w-sm mx-auto space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border/40">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                    <span className="text-xs font-extrabold text-foreground">通知ドロワー (Notifications)</span>
+                  </div>
+                  <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">新着 1 件</span>
+                </div>
+
+                {/* Real-time reactive notification card */}
+                <div className="p-3.5 rounded-xl border border-border bg-background shadow-sm hover:border-primary/20 transition-all duration-300 flex items-start gap-3">
+                  {/* Matching Dynamic Icon */}
+                  <div className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner",
+                    notifyType === "general" && "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400",
+                    notifyType === "new_lesson" && "bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400",
+                    notifyType === "login_bonus" && "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400",
+                    notifyType === "payment_failed" && "bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400"
+                  )}>
+                    {notifyType === "general" && <Bell size={16} className="fill-blue-500/10" />}
+                    {notifyType === "new_lesson" && <BookOpen size={16} />}
+                    {notifyType === "login_bonus" && <Flame size={16} className="fill-orange-500/10" />}
+                    {notifyType === "payment_failed" && <AlertTriangle size={16} />}
+                  </div>
+
+                  <div className="flex-1 space-y-1 overflow-hidden">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className={cn(
+                        "text-xs font-extrabold truncate",
+                        notifyTitle.trim() ? "text-foreground" : "text-muted-foreground/60 italic"
+                      )}>
+                        {notifyTitle.trim() ? notifyTitle : "お知らせタイトルがここに表示されます"}
+                      </h4>
+                      <span className="text-[9px] text-muted-foreground shrink-0 font-medium mt-0.5">たった今</span>
+                    </div>
+                    <p className={cn(
+                      "text-[10px] leading-normal whitespace-pre-wrap break-words",
+                      notifyMessage.trim() ? "text-muted-foreground font-medium" : "text-muted-foreground/40 italic font-normal"
+                    )}>
+                      {notifyMessage.trim() ? notifyMessage : "お知らせ本文がここに表示されます。カテゴリー切り替えによって、左側のアバター色とアイコンが動的に変化します。"}
+                    </p>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className={cn(
+                        "text-[9px] font-extrabold px-1.5 py-0.5 rounded",
+                        notifyType === "general" && "bg-blue-100/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300",
+                        notifyType === "new_lesson" && "bg-green-100/50 dark:bg-green-950/20 text-green-700 dark:text-green-300",
+                        notifyType === "login_bonus" && "bg-orange-100/50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300",
+                        notifyType === "payment_failed" && "bg-red-100/50 dark:bg-red-950/20 text-red-700 dark:text-red-300"
+                      )}>
+                        {notifyType === "general" && "一般お知らせ"}
+                        {notifyType === "new_lesson" && "新規レッスン"}
+                        {notifyType === "login_bonus" && "アクティビティ"}
+                        {notifyType === "payment_failed" && "重要アラート"}
+                      </span>
+                      <span className="text-[9px] text-primary font-bold hover:underline cursor-pointer flex items-center gap-0.5">
+                        詳細を見る <span className="text-[8px] font-normal">→</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[9px] text-center text-muted-foreground/60 font-medium">
+                  プレビューは受講生のデスクトップおよびモバイルの標準表示サイズに対応しています。
+                </p>
+              </div>
             </div>
           </div>
         </TabsContent>
