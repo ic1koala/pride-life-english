@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
   Shield, Users, Search, TrendingUp, CheckCircle2, Loader2, BookOpen,
-  Plus, Pencil, Trash2, Eye, EyeOff,
+  Plus, Pencil, Trash2, Eye, EyeOff, HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +40,35 @@ const emptyForm: LessonForm = {
   videoUrl: "", journalingPrompt: "", speakingPrompt: "", publish: false,
 };
 
+const ADMIN_GUIDE_SECTIONS = [
+  {
+    title: "👥 メンバー管理 (Members)",
+    desc: "受講生のステータス管理と進捗状況の可視化を行います。",
+    steps: [
+      "ステータスの変更: リストのドロップダウンからActive, Inactive, Past Dueなどの状態を即時に反映できます（Stripeと連動します）。",
+      "進捗の確認: 各受講生の横にある『Progress』ボタンをクリックすると、完了レッスン数、累積ポイント、ストリーク日数、獲得バッジの一覧がポップアップで表示されます。"
+    ]
+  },
+  {
+    title: "📚 レッスン管理と3ターム制 (Lessons)",
+    desc: "カリキュラム編集と、1年間の3ターム（計288レッスン）分割管理を行います。",
+    steps: [
+      "ターム切り替え: Lessonsタブの上部に配置された『Term 1』『Term 2』『Term 3』タブで、各期（96レッスン・24週間単位）ごとに表示をフィルタリングできます。",
+      "レッスンの追加: 『Add Lesson』ボタンから新しい日次レッスンを作成します。選択中のタームに対応した週番号（例：Term 2表示時はWeek 25）が自動的にデフォルト設定されます。",
+      "ドラフト/公開の切り替え: リスト内のトグルスイッチを操作することで、受講生へのレッスン公開・非公開を瞬時に制御できます。"
+    ]
+  },
+  {
+    title: "⚖️ 運用基本ルール (Platform Rules)",
+    desc: "自動更新サブスクリプションおよびバッジ獲得の根幹ルールです。",
+    steps: [
+      "学期契約ルール: 6ヶ月の定期契約縛りです。途中での自己都合休会は原則不可となっており、期末のウィンドウ期間でのみ次期の休会を受け付けます。",
+      "復学・データの保護: 途中で退会したメンバーでも進捗や獲得ポイント、バッジデータは完全に保持されます。いつでも同じレッスンの続きから復学可能です。",
+      "バッジ獲得ルール: レッスン96完了時に 1st Half バッジ、レッスン192完了時に 2nd Half / Complete / Master バッジ（全課題クリア条件）が自動的に贈呈されます。"
+    ]
+  }
+];
+
 export default function AdminPage() {
   const utils = trpc.useUtils();
   const [search, setSearch] = useState("");
@@ -49,6 +78,9 @@ export default function AdminPage() {
   const [editingLessonId, setEditingLessonId] = useState<number | null>(null);
   const [form, setForm] = useState<LessonForm>(emptyForm);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [activeTerm, setActiveTerm] = useState<"term1" | "term2" | "term3">("term1");
+  const [isMaximized, setIsMaximized] = useState(false);
 
   // ─── Members data ───────────────────────────────────────────────────────────
   const { data: members, isLoading } = trpc.admin.members.useQuery();
@@ -97,12 +129,29 @@ export default function AdminPage() {
     m.email?.toLowerCase().includes(search.toLowerCase())
   ) ?? [];
 
-  const filteredLessons = allLessons?.filter((l) =>
-    !lessonSearch ||
-    l.title.toLowerCase().includes(lessonSearch.toLowerCase()) ||
-    `week ${l.weekNumber}`.includes(lessonSearch.toLowerCase()) ||
-    `day ${l.dayNumber}`.includes(lessonSearch.toLowerCase())
-  ) ?? [];
+  const getTermWeeks = (term: "term1" | "term2" | "term3") => {
+    switch (term) {
+      case "term1": return { start: 1, end: 24 };
+      case "term2": return { start: 25, end: 48 };
+      case "term3": return { start: 49, end: 72 };
+    }
+  };
+
+  const { start: termStartWeek, end: termEndWeek } = getTermWeeks(activeTerm);
+
+  const filteredLessons = allLessons?.filter((l) => {
+    // 1. Filter by term weeks range
+    const inTerm = l.weekNumber >= termStartWeek && l.weekNumber <= termEndWeek;
+    if (!inTerm) return false;
+
+    // 2. Filter by search query
+    return (
+      !lessonSearch ||
+      l.title.toLowerCase().includes(lessonSearch.toLowerCase()) ||
+      `week ${l.weekNumber}`.includes(lessonSearch.toLowerCase()) ||
+      `day ${l.dayNumber}`.includes(lessonSearch.toLowerCase())
+    );
+  }) ?? [];
 
   const activeCount = members?.filter((m) => m.subscriptionStatus === "active").length ?? 0;
   const totalCount = members?.length ?? 0;
@@ -111,7 +160,12 @@ export default function AdminPage() {
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const openCreateDialog = () => {
     setEditingLessonId(null);
-    setForm(emptyForm);
+    const defaultWeek = activeTerm === "term1" ? 1 : (activeTerm === "term2" ? 25 : 49);
+    setForm({
+      ...emptyForm,
+      weekNumber: defaultWeek,
+    });
+    setIsMaximized(false);
     setLessonDialogOpen(true);
   };
 
@@ -127,6 +181,7 @@ export default function AdminPage() {
       speakingPrompt: lesson.speakingPrompt ?? "",
       publish: !!lesson.publishedAt,
     });
+    setIsMaximized(false);
     setLessonDialogOpen(true);
   };
 
@@ -151,6 +206,16 @@ export default function AdminPage() {
             Admin <span className="pride-gradient-text">Panel</span>
           </h1>
           <p className="text-muted-foreground mt-1">Manage members and course content</p>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            className="rounded-xl gap-2 font-bold text-xs shadow-sm bg-background border-primary/20 hover:border-primary/40 hover:bg-primary/[0.02]"
+            onClick={() => setGuideOpen(true)}
+          >
+            <HelpCircle size={16} className="text-primary animate-pulse" />
+            How to Use
+          </Button>
         </div>
       </div>
 
@@ -322,6 +387,34 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Term Selector Sub-tabs */}
+          <div className="bg-muted/40 p-1 rounded-xl border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 max-w-2xl shadow-sm">
+            <div className="flex items-center gap-2 px-2 shrink-0">
+              <BookOpen size={14} className="text-primary" />
+              <span className="text-[11px] font-bold text-muted-foreground">ターム切り替え (Curriculum Terms):</span>
+            </div>
+            <div className="flex items-center gap-1 flex-1 w-full">
+              {[
+                { id: "term1", label: "Term 1 (W1-24)" },
+                { id: "term2", label: "Term 2 (W25-48)" },
+                { id: "term3", label: "Term 3 (W49-72)" },
+              ].map((term) => (
+                <button
+                  key={term.id}
+                  onClick={() => setActiveTerm(term.id as any)}
+                  className={cn(
+                    "flex-1 text-center py-1 rounded-lg text-[11px] font-bold transition-all duration-200 border border-transparent",
+                    activeTerm === term.id
+                      ? "bg-white dark:bg-slate-800 text-primary shadow-sm border-primary/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  )}
+                >
+                  {term.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Actions bar */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
@@ -334,14 +427,14 @@ export default function AdminPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Button onClick={openCreateDialog} className="rounded-xl gap-2">
+              <Button onClick={openCreateDialog} className="rounded-xl gap-2 shadow-sm">
                 <Plus size={16} /> Add Lesson
               </Button>
               <Button
                 onClick={() => seedLessons.mutate()}
                 disabled={seedLessons.isPending}
                 variant="outline"
-                className="rounded-xl gap-2"
+                className="rounded-xl gap-2 shadow-sm"
               >
                 {seedLessons.isPending ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
                 Seed 96
@@ -488,22 +581,106 @@ export default function AdminPage() {
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* Lesson Create/Edit Dialog                                             */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* 📘 Admin Guide (How to Use) Dialog */}
+      <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
+        <DialogContent className="sm:max-w-2xl rounded-2xl max-h-[85vh] flex flex-col p-6 shadow-2xl border-primary/10">
+          <DialogHeader className="pb-3 border-b border-border/40 shrink-0">
+            <DialogTitle className="font-serif text-xl flex items-center gap-2 text-foreground">
+              <HelpCircle className="text-primary animate-pulse" />
+              管理者パネル 使い方ガイド (Admin Guide)
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto pr-1 py-4 space-y-5">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              このガイドは管理者パネルの基本操作とPLE（Pride Life English）アカデミーの運用ルールを説明します。管理機能のアップデートに合わせてこの内容も自動更新されます。
+            </p>
+
+            <div className="space-y-4">
+              {ADMIN_GUIDE_SECTIONS.map((section, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-border/60 bg-muted/10 space-y-3">
+                  <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                    {section.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {section.desc}
+                  </p>
+                  <ul className="space-y-2 text-xs text-muted-foreground/90 pl-1 list-none">
+                    {section.steps.map((step, sIdx) => {
+                      const [highlight, ...rest] = step.split(":");
+                      return (
+                        <li key={sIdx} className="leading-relaxed flex items-start gap-1.5">
+                          <span className="text-primary mt-1 shrink-0">•</span>
+                          <span>
+                            <strong className="text-foreground">{highlight}:</strong>
+                            {rest.join(":")}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-border/40 shrink-0">
+            <Button onClick={() => setGuideOpen(false)} className="rounded-xl w-full sm:w-auto">
+              ガイドを閉じる
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* Lesson Create/Edit Dialog                                             */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
       <Dialog open={lessonDialogOpen} onOpenChange={setLessonDialogOpen}>
-        <DialogContent className="sm:max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-xl">
+        <DialogContent
+          className={cn(
+            "rounded-2xl flex flex-col transition-all duration-300 shadow-2xl border-primary/10",
+            isMaximized
+              ? "w-[95vw] sm:max-w-[95vw] h-[90vh] sm:max-h-[90vh] max-h-[95vh] p-6"
+              : "sm:max-w-lg max-h-[90vh] p-6"
+          )}
+          style={{
+            resize: isMaximized ? "none" : "both",
+            minWidth: isMaximized ? "none" : "480px",
+            minHeight: isMaximized ? "none" : "400px",
+            overflow: "hidden", // We use inner flex scroll
+          }}
+        >
+          {/* Maximize Toggle Button placed perfectly in the header */}
+          <div className="absolute right-12 top-4 flex items-center gap-1.5 z-50">
+            <button
+              type="button"
+              onClick={() => setIsMaximized(!isMaximized)}
+              className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors border border-border/40 bg-background/50 backdrop-blur-sm"
+              title={isMaximized ? "縮小する" : "最大化する"}
+            >
+              {isMaximized ? (
+                <span className="text-[10px] font-bold px-1 py-0.5 leading-none">❐ 縮小</span>
+              ) : (
+                <span className="text-[10px] font-bold px-1 py-0.5 leading-none">⛶ 最大化</span>
+              )}
+            </button>
+          </div>
+
+          <DialogHeader className="shrink-0 pb-2 border-b border-border/20">
+            <DialogTitle className="font-serif text-xl text-foreground">
               {editingLessonId ? "Edit Lesson" : "Create New Lesson"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 mt-2">
+          {/* Form Content is 100% scrollable when overflowing */}
+          <div className="flex-1 overflow-y-auto pr-1 py-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Week (1-24)</Label>
+                <Label>Week (1-72)</Label>
                 <Input
                   type="number"
                   min={1}
-                  max={24}
+                  max={72}
                   value={form.weekNumber}
                   onChange={(e) => setForm({ ...form, weekNumber: Number(e.target.value) })}
                   className="rounded-xl"
@@ -527,7 +704,7 @@ export default function AdminPage() {
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="e.g. Week 1 Day 1: Introducing Yourself with Pride"
+                placeholder="e.g. Week 25 Day 1: Advanced Business English with Pride"
                 className="rounded-xl"
               />
             </div>
@@ -557,7 +734,7 @@ export default function AdminPage() {
               <Textarea
                 value={form.journalingPrompt}
                 onChange={(e) => setForm({ ...form, journalingPrompt: e.target.value })}
-                placeholder="How would you describe yourself to someone new?"
+                placeholder="How would you describe your goals for this term?"
                 className="rounded-xl min-h-[60px]"
               />
             </div>
@@ -567,25 +744,25 @@ export default function AdminPage() {
               <Textarea
                 value={form.speakingPrompt}
                 onChange={(e) => setForm({ ...form, speakingPrompt: e.target.value })}
-                placeholder='Practice saying: "I&apos;d say... I&apos;d describe myself as..."'
+                placeholder='Practice saying: "In this term, I plan to..."'
                 className="rounded-xl min-h-[60px]"
               />
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pt-2">
               <Switch
                 checked={form.publish}
                 onCheckedChange={(checked) => setForm({ ...form, publish: checked })}
               />
-              <Label className="cursor-pointer">Publish immediately</Label>
+              <Label className="cursor-pointer text-xs font-semibold text-muted-foreground select-none">Publish immediately (受講生に即時公開する)</Label>
             </div>
           </div>
 
-          <DialogFooter className="mt-4">
+          <DialogFooter className="shrink-0 pt-3 border-t border-border/20 mt-2">
             <Button variant="outline" onClick={() => setLessonDialogOpen(false)} className="rounded-xl">
               Cancel
             </Button>
-            <Button onClick={handleSaveLesson} disabled={isSaving} className="rounded-xl gap-2">
+            <Button onClick={handleSaveLesson} disabled={isSaving} className="rounded-xl gap-2 shadow-sm">
               {isSaving && <Loader2 size={16} className="animate-spin" />}
               {editingLessonId ? "Save Changes" : "Create Lesson"}
             </Button>
