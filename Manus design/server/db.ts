@@ -97,8 +97,9 @@ const mockUser = {
   name: "Test User",
   email: "test@example.com",
   passwordHash: "$2b$12$xuA7oGngwlhuWp1mRbNnlORM7zbvmGozv4U55EEs6R0kDgMz3l946", // "password123"
-  role: "admin",
-  get subscriptionStatus() { return mockSubscriptionStatus; },
+  role: "admin" as "admin" | "user",
+  loginMethod: null,
+  get subscriptionStatus() { return mockSubscriptionStatus as "active" | "inactive" | "past_due" | "canceled" | "trialing" | "suspended"; },
   stripeCustomerId: "cus_mock_123",
   stripeSubscriptionId: "sub_mock_123",
   subscriptionCurrentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
