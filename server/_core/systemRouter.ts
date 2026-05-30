@@ -1,6 +1,10 @@
 import { z } from "zod";
-import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
+
+async function notifyOwner(input: { title: string; content: string }): Promise<boolean> {
+  console.log(`[System Notification] Title: ${input.title} | Content: ${input.content}`);
+  return true;
+}
 
 export const systemRouter = router({
   health: publicProcedure
