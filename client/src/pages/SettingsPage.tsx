@@ -13,12 +13,44 @@ const STATUS_COLORS: Record<string, string> = {
   trialing: "text-blue-600 bg-blue-50",
 };
 
+const BADGES = [
+  {
+    id: "term_1_complete",
+    name: "1st Half Badge",
+    img: "/badges/badge_1st_half.png",
+    desc: "1stターム（最初の6ヶ月間・96レッスン）を完走した学習者に贈られる栄誉ある証！",
+    progress: (completed: number) => `進捗: ${Math.min(completed, 96)} / 96 レッスン`
+  },
+  {
+    id: "term_2_complete",
+    name: "2nd Half Badge",
+    img: "/badges/badge_2nd_half.png",
+    desc: "2ndターム（後半の6ヶ月間・96レッスン）を最後まで完走した者に贈られる輝かしいメダル！",
+    progress: (completed: number) => completed < 96 ? "1stタームを完走するとカウント開始" : `進捗: ${Math.min(completed - 96, 96)} / 96 レッスン`
+  },
+  {
+    id: "course_complete",
+    name: "Complete Badge",
+    img: "/badges/badge_complete.png",
+    desc: "1年間（計192レッスン）を完全完走し、自分らしさを誇れる本物の英語力を手に入れた絶対的卒業証明！",
+    progress: (completed: number) => `全体進捗: ${Math.min(completed, 192)} / 192`
+  },
+  {
+    id: "master_badge",
+    name: "Master Badge",
+    img: "/badges/badge_master.png",
+    desc: "全カリキュラムを完走し、さらに全てのデイリータスクを完遂した究極の英語マスターバッジ！",
+    progress: (completed: number) => `獲得条件: 192レッスン ＋ 全タスククリア`
+  }
+];
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const utils = trpc.useUtils();
 
   const { data: profileData, refetch: refetchProfile } = trpc.auth.profile.useQuery();
   const { data: semesterData } = trpc.subscription.semesterStatus.useQuery();
+  const { data: progressSummary } = trpc.progress.summary.useQuery();
 
   const updateAvatarMutation = trpc.auth.updateAvatar.useMutation({
     onSuccess: () => {
@@ -103,6 +135,7 @@ export default function SettingsPage() {
 
   const subscriptionStatus = profileData?.subscriptionStatus ?? (user as any)?.subscriptionStatus ?? "inactive";
   const activeCourse = profileData?.activeCourse ?? "star";
+  const completedLessons = progressSummary?.completed ?? 0;
 
   const formatDate = (d: Date | string | null | undefined) => {
     if (!d) return "—";
@@ -365,6 +398,171 @@ export default function SettingsPage() {
               また頑張れるようになったら、次の期に同じ学期の続きの月からいつでも復学できます。経過データはすべて保存されます。
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* 🏆 Badges / 獲得バッジ */}
+      <div className="premium-card rounded-2xl p-6 border border-border/80 bg-card/80 backdrop-blur-md shadow-sm relative overflow-hidden">
+        {/* Background glow decorator */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-pink-500/5 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+
+        <div className="flex items-center gap-3 mb-4 relative z-10">
+          <div className="w-10 h-10 rounded-xl bg-pink-50 dark:bg-pink-950/30 flex items-center justify-center shadow-inner">
+            <Star size={20} className="text-pink-500 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="font-bold text-lg text-foreground">学習バッジコレクション</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Pride Life Englishのカリキュラム進捗に応じて獲得できる特別な限定バッジです</p>
+          </div>
+        </div>
+
+        <div className="h-[1px] w-full bg-border/40 my-4" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {BADGES.map((badge) => {
+            const earnedBadge = progressSummary?.milestones?.find((m: any) => m.badgeType === badge.id);
+            const isAcquired = !!earnedBadge;
+            
+            // Format earned date if available
+            const earnedDateStr = earnedBadge?.earnedAt
+              ? new Date(earnedBadge.earnedAt).toLocaleDateString("ja-JP", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "";
+
+            // Calculate progress parameters
+            let percentage = 0;
+            let progressLabel = "";
+            let motivationText = "";
+            let colorThemeClass = "";
+            let progressGradient = "";
+
+            if (badge.id === "term_1_complete") {
+              percentage = Math.min(100, Math.round((completedLessons / 96) * 100));
+              progressLabel = `${Math.min(completedLessons, 96)} / 96 レッスン`;
+              motivationText = completedLessons >= 96 ? "1stタームを見事完走しました！" : `あと ${96 - completedLessons} レッスンでアンロック！`;
+              colorThemeClass = "hover:border-pink-500/30 hover:bg-pink-500/[0.02]";
+              progressGradient = "bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500";
+            } else if (badge.id === "term_2_complete") {
+              const term2Progress = completedLessons < 96 ? 0 : completedLessons - 96;
+              percentage = completedLessons < 96 ? 0 : Math.min(100, Math.round((term2Progress / 96) * 100));
+              progressLabel = completedLessons < 96 ? "0 / 96 レッスン" : `${Math.min(term2Progress, 96)} / 96 レッスン`;
+              motivationText = completedLessons < 96 
+                ? "1stターム完走後に挑戦可能になります" 
+                : (completedLessons >= 192 ? "2ndタームを完全完走しました！" : `あと ${192 - completedLessons} レッスンでアンロック！`);
+              colorThemeClass = "hover:border-amber-500/30 hover:bg-amber-500/[0.02]";
+              progressGradient = "bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500";
+            } else if (badge.id === "course_complete") {
+              percentage = Math.min(100, Math.round((completedLessons / 192) * 100));
+              progressLabel = `${Math.min(completedLessons, 192)} / 192 レッスン`;
+              motivationText = completedLessons >= 192 ? "コース全カリキュラムを完全制覇！" : `あと ${192 - completedLessons} レッスンで完全卒業！`;
+              colorThemeClass = "hover:border-violet-600/30 hover:bg-violet-600/[0.02]";
+              progressGradient = "bg-gradient-to-r from-violet-600 via-indigo-600 to-emerald-500";
+            } else if (badge.id === "master_badge") {
+              percentage = Math.min(100, Math.round((completedLessons / 192) * 100));
+              progressLabel = `${Math.min(completedLessons, 192)} / 192 レッスン`;
+              motivationText = completedLessons >= 192 ? "全課題完全コンプリートの偉業！" : "192レッスン完走＋全デイリー課題クリアでアンロック！";
+              colorThemeClass = "hover:border-cyan-500/30 hover:bg-cyan-500/[0.02]";
+              progressGradient = "bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500";
+            }
+
+            return (
+              <div
+                key={badge.id}
+                className={cn(
+                  "p-5 rounded-2xl border transition-all duration-500 relative flex flex-col group overflow-hidden bg-muted/10 border-border/50",
+                  isAcquired
+                    ? "bg-white/60 dark:bg-black/20 border-primary/10 shadow-sm hover:scale-[1.03] hover:shadow-lg hover:border-primary/30"
+                    : "opacity-90 grayscale-[20%]",
+                  colorThemeClass
+                )}
+              >
+                {/* Glow effect on hover for unlocked badges */}
+                {isAcquired && (
+                  <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/[0.03] to-amber-500/[0.03] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                )}
+
+                <div className="flex gap-4 items-start">
+                  {/* Badge Image slot */}
+                  <div className="w-20 h-20 relative flex items-center justify-center shrink-0">
+                    <img
+                      src={badge.img}
+                      alt={badge.name}
+                      className={cn(
+                        "w-full h-full object-contain transition-all duration-700",
+                        isAcquired
+                          ? "drop-shadow-[0_8px_16px_rgba(236,72,153,0.3)] filter-none scale-100 group-hover:scale-105"
+                          : "filter grayscale opacity-30 contrast-75 brightness-[60%] scale-90 blur-[0.2px] hover:scale-95"
+                      )}
+                    />
+                    {!isAcquired && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-full bg-background/90 shadow-md border border-border/80 flex items-center justify-center text-xs text-muted-foreground/60 transition-transform group-hover:scale-110">
+                          🔒
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badge Details */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm text-foreground mb-1 flex items-center gap-1.5">
+                      {badge.name === "1st Half Badge" && "1st Half (前半戦完走)"}
+                      {badge.name === "2nd Half Badge" && "2nd Half (後半戦完走)"}
+                      {badge.name === "Complete Badge" && "Complete (完全卒業)"}
+                      {badge.name === "Master Badge" && "Master (究極の覇者)"}
+                      {isAcquired && <span className="text-xs text-primary animate-pulse">✨</span>}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground leading-normal mb-2">
+                      {badge.desc}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Unlocking / Progress Info */}
+                <div className="w-full mt-4 pt-3 border-t border-border/40 flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span
+                      className={cn(
+                        "font-bold px-2 py-0.5 rounded-full tracking-wider uppercase",
+                        isAcquired
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground/70"
+                      )}
+                    >
+                      {isAcquired ? "✓ 獲得済み" : "🔒 未取得"}
+                    </span>
+                    <span className="font-mono font-semibold text-muted-foreground/80">
+                      {progressLabel}
+                    </span>
+                  </div>
+
+                  {/* Visual Progress Bar */}
+                  <div className="w-full bg-slate-200/50 dark:bg-slate-800/50 h-2 rounded-full overflow-hidden">
+                    <div
+                      className={cn("h-full transition-all duration-1000 ease-out", progressGradient)}
+                      style={{ width: `${isAcquired ? 100 : percentage}%` }}
+                    />
+                  </div>
+
+                  {/* Gamified feedback text */}
+                  <div className="flex justify-between items-center text-[10px] mt-0.5">
+                    <p className="text-muted-foreground font-medium truncate max-w-[220px]">
+                      {motivationText}
+                    </p>
+                    {isAcquired && earnedDateStr && (
+                      <span className="text-muted-foreground/60 italic">
+                        {earnedDateStr}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

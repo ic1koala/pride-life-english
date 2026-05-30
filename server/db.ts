@@ -34,6 +34,7 @@ let mockSubscriptionStatus = "active";
 let mockActiveCourse: "star" | "knowledge" = "star";
 let mockAvatarUrl: string | null = null;
 const mockTaskProgressStore: Array<{ userId: number, lessonId: number, taskKey: string, pointsEarned: number }> = [];
+const mockMilestonesStore: Array<{ userId: number, badgeType: string, badgeLabel: string }> = [];
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -456,7 +457,12 @@ export async function getTotalPoints(userId: number) {
 export async function getUserMilestones(userId: number) {
   try {
     const db = await getDb();
-    if (!db) return [];
+    if (!db) {
+      if (userId === 999) {
+        return mockMilestonesStore.filter(m => m.userId === userId) as any[];
+      }
+      return [];
+    }
     return db.select().from(milestones).where(eq(milestones.userId, userId)).orderBy(milestones.earnedAt);
   } catch (e) {
     console.warn("[Database] Failed to get user milestones, returning empty:", e);
@@ -467,7 +473,15 @@ export async function getUserMilestones(userId: number) {
 export async function awardMilestone(userId: number, badgeType: string, badgeLabel: string) {
   try {
     const db = await getDb();
-    if (!db) return;
+    if (!db) {
+      if (userId === 999) {
+        const existing = mockMilestonesStore.find(m => m.userId === userId && m.badgeType === badgeType);
+        if (!existing) {
+          mockMilestonesStore.push({ userId, badgeType, badgeLabel });
+        }
+      }
+      return;
+    }
     const existing = await db.select().from(milestones).where(and(eq(milestones.userId, userId), eq(milestones.badgeType, badgeType))).limit(1);
     if (existing.length > 0) return;
     await db.insert(milestones).values({ userId, badgeType, badgeLabel });

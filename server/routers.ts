@@ -54,9 +54,10 @@ export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     profile: memberProcedure.query(async ({ ctx }) => {
-      const { getUserById } = await import("./db");
+      const { getUserById, getUserMilestones } = await import("./db");
       const user = await getUserById(ctx.user.id);
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      const userMilestones = await getUserMilestones(ctx.user.id);
       return {
         id: user.id,
         name: user.name,
@@ -69,6 +70,7 @@ export const appRouter = router({
         semesterStartDate: (user as any).semesterStartDate ?? user.createdAt,
         semesterNumber: (user as any).semesterNumber ?? 1,
         avatarUrl: (user as any).avatarUrl ?? null,
+        milestones: userMilestones.map(m => m.badgeType),
       };
     }),
     updateAvatar: memberProcedure
@@ -200,15 +202,41 @@ export const appRouter = router({
         await upsertLessonProgress({ userId: ctx.user.id, lessonId: input.lessonId, completedAt: new Date() });
         const completed = await getCompletedLessonCount(ctx.user.id);
         const milestoneMap: Record<number, [string, string]> = {
-          1: ["first_lesson","🌈 First Step"], 5: ["five_lessons","⭐ Rising Star"],
-          10: ["ten_lessons","🔥 On Fire"], 25: ["quarter_done","💜 Quarter Pride"],
-          50: ["halfway","🏳️‍🌈 Halfway Hero"], 75: ["three_quarters","✨ Almost There"],
-          100: ["century","💎 Century Club"], 120: ["course_complete","🎓 Pride Graduate"],
+          1: ["first_lesson", "🌈 First Step"],
+          5: ["five_lessons", "⭐ Rising Star"],
+          10: ["ten_lessons", "🔥 On Fire"],
+          25: ["quarter_done", "💜 Quarter Pride"],
+          50: ["halfway", "🏳️‍🌈 Halfway Hero"],
+          75: ["three_quarters", "✨ Almost There"],
+          96: ["term_1_complete", "1st Half Badge"],
+          100: ["century", "💎 Century Club"],
+          192: ["term_2_complete", "2nd Half Badge"],
         };
         if (milestoneMap[completed]) {
           const [type, label] = milestoneMap[completed];
           await awardMilestone(ctx.user.id, type, label);
-          await createNotification({ userId: ctx.user.id, type: "milestone", title: "New Badge Earned!", message: `Congratulations! You earned the "${label}" badge!` });
+          await createNotification({
+            userId: ctx.user.id,
+            type: "milestone",
+            title: "New Badge Earned!",
+            message: `Congratulations! You earned the "${label}" badge!`,
+          });
+          if (type === "term_2_complete") {
+            await awardMilestone(ctx.user.id, "course_complete", "Complete Badge");
+            await awardMilestone(ctx.user.id, "master_badge", "Master Badge");
+            await createNotification({
+              userId: ctx.user.id,
+              type: "milestone",
+              title: "🎓 コース完全完走！ 🎓",
+              message: "おめでとうございます！1年間の全カリキュラムを完走し、Completeバッジを獲得しました！",
+            });
+            await createNotification({
+              userId: ctx.user.id,
+              type: "milestone",
+              title: "👑 英語マスター達成！ 👑",
+              message: "素晴らしい！全てのレッスンと課題をクリアし、究極のMasterバッジを獲得しました！",
+            });
+          }
         }
         return { success: true, completed };
       }),
@@ -278,7 +306,12 @@ export const appRouter = router({
           }
         }
       }
-      const pointsEarned = 100;
+      let pointsEarned = 10;
+      if (streak === 7) {
+        pointsEarned = 50;
+      } else if (streak > 1) {
+        pointsEarned = 10 + (streak - 1) * 5;
+      }
       await recordLoginBonus({ userId: ctx.user.id, loginDate: today, streakDay: streak, pointsEarned });
       
       const message = streakFreezeUsed 
