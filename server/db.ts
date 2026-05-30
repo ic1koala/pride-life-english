@@ -32,6 +32,7 @@ let mockStreakFreezesActive = 0;
 let mockSuspensionsUsedCount = 0;
 let mockSubscriptionStatus = "active";
 let mockActiveCourse: "star" | "knowledge" = "star";
+let mockAvatarUrl: string | null = null;
 const mockTaskProgressStore: Array<{ userId: number, lessonId: number, taskKey: string, pointsEarned: number }> = [];
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -106,6 +107,7 @@ const mockUser = {
   get streakFreezesActive() { return mockStreakFreezesActive; },
   get suspensionsUsedCount() { return mockSuspensionsUsedCount; },
   get activeCourse() { return mockActiveCourse; },
+  get avatarUrl() { return mockAvatarUrl; },
   semesterStartDate: new Date(),
   semesterNumber: 1,
   createdAt: new Date(),
@@ -780,6 +782,21 @@ export async function switchCourse(userId: number, course: "star" | "knowledge")
     return { success: true, activeCourse: course };
   } catch (e) {
     console.warn("[Database] Failed to switch course:", e);
+    throw e;
+  }
+}
+
+export async function updateUserAvatar(userId: number, avatarUrl: string | null) {
+  try {
+    const db = await getDb();
+    if (!db) {
+      if (userId === 999) mockAvatarUrl = avatarUrl;
+      return { success: true, avatarUrl };
+    }
+    await db.update(users).set({ avatarUrl }).where(eq(users.id, userId));
+    return { success: true, avatarUrl };
+  } catch (e) {
+    console.warn("[Database] Failed to update user avatar:", e);
     throw e;
   }
 }

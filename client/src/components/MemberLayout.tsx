@@ -37,7 +37,6 @@ const sidebarNav = [
   { href: "/progress", label: "進捗トラッカー", labelEn: "Progress", icon: TrendingUp },
   { href: "/schedule", label: "年間スケジュール", labelEn: "Schedule", icon: Calendar },
   { href: "https://line.me/R/ti/p/@pridelife", label: "公式LINEサポート", labelEn: "LINE Support", icon: MessageCircle, isExternal: true },
-  { href: "/settings", label: "設定", labelEn: "Settings", icon: Settings },
 ];
 
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
@@ -95,19 +94,25 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
 
         {/* User */}
         <div className="px-5 py-4 border-b" style={{ borderColor: "var(--sidebar-border)" }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full pride-gradient flex items-center justify-center text-white text-sm font-semibold shrink-0">
-              {(user?.name ?? "U").charAt(0).toUpperCase()}
+          <Link href="/settings">
+            <div className="flex items-center gap-3 cursor-pointer group hover:opacity-90 transition-opacity">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-white/10 group-hover:ring-primary/55 transition-all" />
+              ) : (
+                <div className="w-9 h-9 rounded-full pride-gradient flex items-center justify-center text-white text-sm font-semibold shrink-0 group-hover:scale-105 transition-transform">
+                  {(user?.name ?? "U").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors" style={{ color: "var(--sidebar-foreground)" }}>
+                  {user?.name ?? "メンバー"}
+                </p>
+                <p className="text-[11px] opacity-50 truncate" style={{ color: "var(--sidebar-foreground)" }}>
+                  {(user as any)?.email ?? ""}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: "var(--sidebar-foreground)" }}>
-                {user?.name ?? "メンバー"}
-              </p>
-              <p className="text-[11px] opacity-50 truncate" style={{ color: "var(--sidebar-foreground)" }}>
-                {(user as any)?.email ?? ""}
-              </p>
-            </div>
-          </div>
+          </Link>
         </div>
 
         {/* Nav */}
@@ -320,9 +325,17 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
               </span>
             )}
           </button>
-          <div className="w-8 h-8 rounded-full pride-gradient flex items-center justify-center text-white text-xs font-semibold">
-            {(user?.name ?? "U").charAt(0).toUpperCase()}
-          </div>
+          <Link href="/settings">
+            <div className="w-8 h-8 rounded-full cursor-pointer overflow-hidden ring-2 ring-transparent hover:ring-primary/50 hover:scale-105 transition-all">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full pride-gradient flex items-center justify-center text-white text-xs font-semibold">
+                  {(user?.name ?? "U").charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+          </Link>
         </div>
       </div>
 

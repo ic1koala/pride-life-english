@@ -18,6 +18,7 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   // Password-based auth
   passwordHash: varchar("passwordHash", { length: 256 }),
+  avatarUrl: text("avatarUrl"),
   // Stripe
   stripeCustomerId: varchar("stripeCustomerId", { length: 64 }),
   stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 64 }),

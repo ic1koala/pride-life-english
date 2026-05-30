@@ -20,6 +20,59 @@ export default function SettingsPage() {
   const { data: profileData, refetch: refetchProfile } = trpc.auth.profile.useQuery();
   const { data: semesterData } = trpc.subscription.semesterStatus.useQuery();
 
+  const updateAvatarMutation = trpc.auth.updateAvatar.useMutation({
+    onSuccess: () => {
+      toast.success("プロフィール写真を更新しました！");
+      refetchProfile();
+      utils.auth.me.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "写真のアップデートに失敗しました"),
+  });
+
+  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("画像ファイルを選択してください");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.8);
+          updateAvatarMutation.mutate({ avatarUrl: compressedBase64 });
+        }
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const portalMutation = trpc.stripe.getPortalUrl.useMutation({
     onSuccess: (data) => {
       if (data.url) {
@@ -61,9 +114,9 @@ export default function SettingsPage() {
       {/* Header */}
       <div>
         <h1 className="font-serif text-3xl sm:text-4xl font-bold text-foreground">
-          <span className="pride-gradient-text">Settings</span>
+          <span className="pride-gradient-text">Account</span>
         </h1>
-        <p className="text-muted-foreground mt-1">アカウント設定とサブスクリプションの管理</p>
+        <p className="text-muted-foreground mt-1">アカウントプロフィールとサブスクリプションの管理</p>
       </div>
 
       <div className="h-1 rounded-full pride-gradient" />
@@ -78,8 +131,35 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl pride-gradient flex items-center justify-center text-white text-2xl font-bold shadow-md">
-            {(user?.name ?? "U").charAt(0).toUpperCase()}
+          <div className="relative w-16 h-16 rounded-2xl group overflow-hidden shrink-0 shadow-md border border-border/50">
+            {profileData?.avatarUrl || user?.avatarUrl ? (
+              <img src={profileData?.avatarUrl || user?.avatarUrl || ""} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full pride-gradient flex items-center justify-center text-white text-2xl font-bold">
+                {(user?.name ?? "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <label
+              htmlFor="avatar-upload"
+              className={cn(
+                "absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white",
+                updateAvatarMutation.isPending && "opacity-100 bg-black/60"
+              )}
+            >
+              {updateAvatarMutation.isPending ? (
+                <Loader2 size={16} className="animate-spin text-white" />
+              ) : (
+                <span className="text-[10px] font-bold tracking-wider">変更する</span>
+              )}
+            </label>
+            <input
+              type="file"
+              id="avatar-upload"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+              disabled={updateAvatarMutation.isPending}
+            />
           </div>
           <div>
             <p className="font-semibold text-foreground text-lg">{user?.name ?? "—"}</p>

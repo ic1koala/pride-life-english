@@ -68,8 +68,15 @@ export const appRouter = router({
         activeCourse: (user as any).activeCourse ?? "star",
         semesterStartDate: (user as any).semesterStartDate ?? user.createdAt,
         semesterNumber: (user as any).semesterNumber ?? 1,
+        avatarUrl: (user as any).avatarUrl ?? null,
       };
     }),
+    updateAvatar: memberProcedure
+      .input(z.object({ avatarUrl: z.string().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        const { updateUserAvatar } = await import("./db");
+        return updateUserAvatar(ctx.user.id, input.avatarUrl);
+      }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
