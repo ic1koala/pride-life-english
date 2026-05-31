@@ -32,7 +32,7 @@ export default function ProgressPage() {
       {/* Header */}
       <div>
         <h1 className="font-serif text-3xl sm:text-4xl font-bold text-foreground">
-          Your <span className="pride-gradient-text">Progress</span>
+          Your Progress
         </h1>
         <p className="text-muted-foreground mt-1">Track your 6-month English journey</p>
       </div>

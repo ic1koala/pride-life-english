@@ -274,7 +274,7 @@ export default function AdminPage() {
         <div>
           <h1 className="font-serif text-3xl sm:text-4xl font-bold text-foreground flex items-center gap-3">
             <Shield size={32} className="text-primary" />
-            Admin <span className="pride-gradient-text">Panel</span>
+            Admin Panel
           </h1>
           <p className="text-muted-foreground mt-1">Manage members and course content</p>
         </div>
