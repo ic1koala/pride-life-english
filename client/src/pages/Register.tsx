@@ -61,7 +61,7 @@ export default function Register() {
             <span className="pride-gradient-text">Pride Journey</span>
           </h1>
           <p className="text-lg opacity-80 leading-relaxed mb-8" style={{ color: "rgba(255,255,255,0.8)" }}>
-            Join a community of LGBT9+ English learners. 6 months of lessons, speaking practice, and growth.
+            Join a community of LGBTQ+ English learners. 6 months of lessons, speaking practice, and growth.
           </p>
 
           {/* Pricing card */}

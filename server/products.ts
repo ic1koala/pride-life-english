@@ -4,7 +4,7 @@
 export const PRIDE_LIFE_PRODUCT = {
   name: "Pride Life English — 6-Month Membership",
   description:
-    "Full access to the Pride Life English 6-month English course for LGBT9+ learners. Includes video lessons, journaling, AI speaking practice, and community Q&A.",
+    "Full access to the Pride Life English 6-month English course for LGBTQ+ learners. Includes video lessons, journaling, AI speaking practice, and community Q&A.",
   // Monthly recurring price in JPY (adjust as needed)
   price: {
     currency: "jpy",

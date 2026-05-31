@@ -259,7 +259,7 @@ export const appRouter = router({
         const text = (transcriptionResult as any).text ?? "";
         const feedbackResponse = await invokeLLM({
           messages: [
-            { role: "system", content: `You are a warm, encouraging English coach for LGBT9+ learners in the Pride Life English course. Your feedback is always supportive, specific, and empowering. Provide feedback in 3 parts: 1. What they did well (pronunciation, expression, confidence) 2. One specific improvement tip 3. An encouraging closing message that celebrates their identity and pride. Keep it under 150 words. Be genuine and inclusive.` },
+            { role: "system", content: `You are a warm, encouraging English coach for LGBTQ+ learners in the Pride Life English course. Your feedback is always supportive, specific, and empowering. Provide feedback in 3 parts: 1. What they did well (pronunciation, expression, confidence) 2. One specific improvement tip 3. An encouraging closing message that celebrates their identity and pride. Keep it under 150 words. Be genuine and inclusive.` },
             { role: "user", content: String(`Speaking prompt: "${input.speakingPrompt}"\n\nStudent's response (transcribed): "${text}"\n\nPlease provide personalized coaching feedback.`) },
           ],
         });
