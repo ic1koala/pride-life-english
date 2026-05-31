@@ -18,7 +18,8 @@ import {
   getUserById, getUserLikes, getUserMilestones, getUserNotifications, getUserProgress,
   markBestAnswer, markNotificationsRead, recordLoginBonus, toggleLessonPublish, toggleLike,
   updateCohort, updateLesson, updateUserSubscription, updateUserSubscriptionByStripeCustomerId,
-  upsertLessonProgress, verifyCohortPassword,
+  upsertLessonProgress, verifyCohortPassword, getAdminPointHistory, getAdminBroadcasts,
+  deleteAdminBroadcast, updateAdminBroadcast,
 } from "./db";
 import { storagePut } from "./storage";
 import { PRIDE_LIFE_PRODUCT } from "./products";
@@ -409,6 +410,46 @@ export const appRouter = router({
           }
         }
         return { success: true, count };
+      }),
+    pointHistory: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+      return getAdminPointHistory();
+    }),
+    listBroadcasts: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+      return getAdminBroadcasts();
+    }),
+    deleteBroadcast: protectedProcedure
+      .input(z.object({
+        title: z.string(),
+        message: z.string(),
+        type: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        await deleteAdminBroadcast(input.title, input.message, input.type);
+        return { success: true };
+      }),
+    updateBroadcast: protectedProcedure
+      .input(z.object({
+        oldTitle: z.string(),
+        oldMessage: z.string(),
+        oldType: z.string(),
+        newTitle: z.string(),
+        newMessage: z.string(),
+        newType: z.enum(["login_bonus", "new_lesson", "payment_failed", "milestone", "general"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        await updateAdminBroadcast(
+          input.oldTitle,
+          input.oldMessage,
+          input.oldType,
+          input.newTitle,
+          input.newMessage,
+          input.newType
+        );
+        return { success: true };
       }),
     updateSubscription: protectedProcedure
       .input(z.object({ userId: z.number(), status: z.enum(["active", "inactive", "past_due", "canceled", "trialing"]) }))

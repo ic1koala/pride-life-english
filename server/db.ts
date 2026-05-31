@@ -905,3 +905,208 @@ export async function verifyCohortPassword(id: number, password: string) {
     return false;
   }
 }
+
+// ─── Admin Line Chart Point History & Broadcast Management ───────────────────
+export async function getAdminPointHistory() {
+  const db = await getDb();
+  const usersList = await getAllUsers();
+
+  // Calculate last 7 dates in M/D format
+  const dates: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
+  }
+
+  const historyData = await Promise.all(
+    usersList.map(async (u) => {
+      const pointsByDate: Record<string, number> = {};
+      dates.forEach((d) => {
+        pointsByDate[d] = 0;
+      });
+
+      if (!db) {
+        // Mock points history for all 7 days
+        let seed = u.id;
+        dates.forEach((d, index) => {
+          const val = Math.floor((Math.sin(seed + index) + 1) * 20); // 0 to 40
+          pointsByDate[d] = val > 5 ? val : 0;
+        });
+      } else {
+        // Fetch real points from DB
+        try {
+          const bonuses = await db.select().from(loginBonuses).where(eq(loginBonuses.userId, u.id));
+          const tasks = await db.select().from(memberTaskProgress).where(eq(memberTaskProgress.userId, u.id));
+          const trans = await db.select().from(pointTransactions).where(eq(pointTransactions.userId, u.id));
+
+          bonuses.forEach((b) => {
+            const d = new Date(b.createdAt);
+            const mD = `${d.getMonth() + 1}/${d.getDate()}`;
+            if (pointsByDate[mD] !== undefined) {
+              pointsByDate[mD] += b.pointsEarned;
+            }
+          });
+
+          tasks.forEach((t) => {
+            const d = new Date(t.completedAt);
+            const mD = `${d.getMonth() + 1}/${d.getDate()}`;
+            if (pointsByDate[mD] !== undefined) {
+              pointsByDate[mD] += t.pointsEarned;
+            }
+          });
+
+          trans.forEach((tr) => {
+            const d = new Date(tr.createdAt);
+            const mD = `${d.getMonth() + 1}/${d.getDate()}`;
+            if (pointsByDate[mD] !== undefined && tr.amount > 0) {
+              pointsByDate[mD] += tr.amount;
+            }
+          });
+        } catch (e) {
+          console.warn(`[Database] Failed to get points history for user ${u.id}:`, e);
+        }
+      }
+
+      return {
+        id: u.id,
+        name: u.name ?? `Student ${u.id}`,
+        role: u.role,
+        pointsByDate,
+      };
+    })
+  );
+
+  // Calculate Weekly Average for non-admins for each date
+  const weeklyAverage: Record<string, number> = {};
+  dates.forEach((d) => {
+    let sum = 0;
+    let count = 0;
+    historyData.forEach((h) => {
+      if (h.role !== "admin") {
+        sum += h.pointsByDate[d] || 0;
+        count++;
+      }
+    });
+    weeklyAverage[d] = count > 0 ? Math.round((sum / count) * 10) / 10 : 0;
+  });
+
+  return {
+    dates,
+    members: historyData.filter((h) => h.role !== "admin"),
+    weeklyAverage,
+  };
+}
+
+export async function getAdminBroadcasts() {
+  const db = await getDb();
+  if (!db) {
+    // Return high-quality mock broadcasts
+    return [
+      {
+        id: 1,
+        title: "【重要】第1期（Term 1）修了バッジの贈呈について",
+        message: "受講生の皆様、第1期レッスン96日間の継続受講お疲れ様でした！マイページにて1st Halfバッジが獲得可能になりましたので、ぜひご確認ください。",
+        type: "general",
+        createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+        count: 5,
+      },
+      {
+        id: 2,
+        title: "🔥 ストリーク応援！3日以上継続でボーナス付与",
+        message: "毎日ログインして英語の学習習慣を身につけましょう！ストリーク日数が増えると、継続ログインボーナス（ポイント）が手に入ります。",
+        type: "login_bonus",
+        createdAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+        count: 5,
+      },
+    ];
+  }
+
+  try {
+    const allNotifs = await db.select().from(notifications).orderBy(desc(notifications.createdAt));
+    const grouped: Record<string, {
+      id: number;
+      title: string;
+      message: string;
+      type: string;
+      createdAt: string;
+      count: number;
+    }> = {};
+
+    allNotifs.forEach((n) => {
+      const key = `${n.type}-${n.title}-${n.message.substring(0, 100)}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          type: n.type,
+          createdAt: n.createdAt.toISOString(),
+          count: 1,
+        };
+      } else {
+        grouped[key].count++;
+      }
+    });
+
+    return Object.values(grouped).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch (e) {
+    console.warn("[Database] Failed to get admin broadcasts, returning empty:", e);
+    return [];
+  }
+}
+
+export async function deleteAdminBroadcast(title: string, message: string, type: string) {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.delete(notifications).where(
+      and(
+        eq(notifications.title, title),
+        eq(notifications.message, message),
+        eq(notifications.type, type as any)
+      )
+    );
+  } catch (e) {
+    console.warn("[Database] Failed to delete admin broadcast:", e);
+  }
+}
+
+export async function updateAdminBroadcast(
+  oldTitle: string,
+  oldMessage: string,
+  oldType: string,
+  newTitle: string,
+  newMessage: string,
+  newType: string
+) {
+  try {
+    const db = await getDb();
+    if (!db) return;
+
+    // 1. Delete matching old rows
+    await db.delete(notifications).where(
+      and(
+        eq(notifications.title, oldTitle),
+        eq(notifications.message, oldMessage),
+        eq(notifications.type, oldType as any)
+      )
+    );
+
+    // 2. Fetch all non-admin users to insert new rows
+    const usersList = await getAllUsers();
+    for (const user of usersList) {
+      if (user.role !== "admin") {
+        await db.insert(notifications).values({
+          userId: user.id,
+          title: newTitle,
+          message: newMessage,
+          type: newType as any,
+          isRead: false,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("[Database] Failed to update admin broadcast:", e);
+  }
+}

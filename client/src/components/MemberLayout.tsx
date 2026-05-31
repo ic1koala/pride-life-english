@@ -24,19 +24,17 @@ const SO_LOGO = "https://lh3.googleusercontent.com/aida-public/AB6AXuDtnqiMEHoVt
 
 /* ─── Bottom tab items (mobile) ─────────────────────────────────────────────── */
 const bottomTabs = [
-  { href: "/dashboard", label: "ホーム", icon: Home },
-  { href: "/progress", label: "レッスン", icon: BookOpen },
-  { href: "/schedule", label: "スケジュール", icon: Calendar },
-  { href: "https://line.me/R/ti/p/@pridelife", label: "公式LINE", icon: MessageCircle, isExternal: true },
-  { href: "/settings", label: "マイページ", icon: User },
+  { href: "/dashboard", label: "ホーム", icon: Home, isExternal: false },
+  { href: "/progress", label: "レッスン", icon: BookOpen, isExternal: false },
+  { href: "/schedule", label: "スケジュール", icon: Calendar, isExternal: false },
+  { href: "/settings", label: "マイページ", icon: User, isExternal: false },
 ];
 
 /* ─── Sidebar nav items (desktop) ───────────────────────────────────────────── */
 const sidebarNav = [
-  { href: "/dashboard", label: "ホーム", labelEn: "Home", icon: Home },
-  { href: "/progress", label: "進捗トラッカー", labelEn: "Progress", icon: TrendingUp },
-  { href: "/schedule", label: "年間スケジュール", labelEn: "Schedule", icon: Calendar },
-  { href: "https://line.me/R/ti/p/@pridelife", label: "公式LINEサポート", labelEn: "LINE Support", icon: MessageCircle, isExternal: true },
+  { href: "/dashboard", label: "ホーム", labelEn: "Home", icon: Home, isExternal: false },
+  { href: "/progress", label: "進捗トラッカー", labelEn: "Progress", icon: TrendingUp, isExternal: false },
+  { href: "/schedule", label: "年間スケジュール", labelEn: "Schedule", icon: Calendar, isExternal: false },
 ];
 
 export default function MemberLayout({ children }: { children: React.ReactNode }) {

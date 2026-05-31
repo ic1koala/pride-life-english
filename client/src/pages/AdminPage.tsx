@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import {
+  ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line
+} from "recharts";
 import {
   Shield, Users, Search, TrendingUp, CheckCircle2, Loader2, BookOpen,
   Plus, Pencil, Trash2, Eye, EyeOff, HelpCircle, Trophy, Bell, Send,
@@ -89,6 +92,12 @@ export default function AdminPage() {
   const [notifyType, setNotifyType] = useState<"general" | "new_lesson" | "login_bonus" | "payment_failed">("general");
   const [confirmSend, setConfirmSend] = useState(false);
   const [leaderboardSearch, setLeaderboardSearch] = useState("");
+  const [selectedChartMembers, setSelectedChartMembers] = useState<string[]>([]);
+  const [editingBroadcast, setEditingBroadcast] = useState<{
+    oldTitle: string;
+    oldMessage: string;
+    oldType: string;
+  } | null>(null);
 
   // ─── Members data ───────────────────────────────────────────────────────────
   const { data: members, isLoading } = trpc.admin.members.useQuery();
@@ -117,11 +126,44 @@ export default function AdminPage() {
       setNotifyMessage("");
       setNotifyType("general");
       setConfirmSend(false);
+      utils.admin.listBroadcasts.invalidate();
     },
     onError: (err) => {
       toast.error(err.message || "お知らせの配信に失敗しました。");
     }
   });
+
+  // ─── Point History & Sent Broadcasts data ────────────────────────────────────
+  const { data: pointHistoryData, isLoading: historyLoading } = trpc.admin.pointHistory.useQuery();
+  const { data: sentBroadcasts } = trpc.admin.listBroadcasts.useQuery();
+
+  const deleteBroadcastMut = trpc.admin.deleteBroadcast.useMutation({
+    onSuccess: () => {
+      toast.success("お知らせを削除しました。");
+      utils.admin.listBroadcasts.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "削除に失敗しました。")
+  });
+
+  const updateBroadcastMut = trpc.admin.updateBroadcast.useMutation({
+    onSuccess: () => {
+      toast.success("お知らせを更新して再送信しました！");
+      utils.admin.listBroadcasts.invalidate();
+      setNotifyTitle("");
+      setNotifyMessage("");
+      setNotifyType("general");
+      setConfirmSend(false);
+      setEditingBroadcast(null);
+    },
+    onError: (err) => toast.error(err.message || "更新に失敗しました。")
+  });
+
+  // Auto-initialize selected chart members to top 3 members
+  useEffect(() => {
+    if (pointHistoryData && selectedChartMembers.length === 0) {
+      setSelectedChartMembers(pointHistoryData.members.slice(0, 3).map(m => m.name));
+    }
+  }, [pointHistoryData]);
 
   // ─── Lessons data ───────────────────────────────────────────────────────────
   const { data: allLessons, isLoading: lessonsLoading } = trpc.admin.listLessons.useQuery();
@@ -852,6 +894,113 @@ export default function AdminPage() {
                   </table>
                 </div>
               </div>
+
+              {/* Point History Line Chart Card */}
+              <div className="premium-card rounded-2xl p-6 mt-6 border border-border shadow-sm bg-gradient-to-br from-background via-background to-primary/[0.01]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="font-serif text-lg font-bold text-foreground">学習アクティビティ推移 (Points Trend)</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">直近7日間に各メンバーが獲得した日次ポイントの推移と全体週平均</p>
+                  </div>
+                  
+                  {/* Interactive Member Toggle Checkboxes */}
+                  {pointHistoryData && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-bold text-muted-foreground">表示するメンバー:</span>
+                      {pointHistoryData.members.map((m) => {
+                        const isChecked = selectedChartMembers.includes(m.name);
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              if (isChecked) {
+                                setSelectedChartMembers(selectedChartMembers.filter((name) => name !== m.name));
+                              } else {
+                                setSelectedChartMembers([...selectedChartMembers, m.name]);
+                              }
+                            }}
+                            className={cn(
+                              "text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all duration-200 cursor-pointer select-none",
+                              isChecked
+                                ? "bg-primary/10 text-primary border-primary/40 shadow-xs"
+                                : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                            )}
+                          >
+                            {m.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Line Chart Component */}
+                {historyLoading ? (
+                  <div className="h-72 flex items-center justify-center">
+                    <Loader2 className="animate-spin text-primary" size={24} />
+                  </div>
+                ) : (
+                  <div className="h-72 w-full text-xs">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={pointHistoryData ? pointHistoryData.dates.map((date, idx) => {
+                          const dataPoint: Record<string, any> = { date };
+                          pointHistoryData.members.forEach((m) => {
+                            dataPoint[m.name] = m.pointsByDate[date] || 0;
+                          });
+                          dataPoint["Weekly Average (週平均)"] = pointHistoryData.weeklyAverage[date] || 0;
+                          return dataPoint;
+                        }) : []}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                        <XAxis dataKey="date" tickLine={false} stroke="hsl(var(--muted-foreground))" />
+                        <YAxis tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "rgba(255,255,255,0.9)",
+                            borderColor: "rgba(0,0,0,0.1)",
+                            borderRadius: "12px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                          }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: "15px" }} />
+                        
+                        {/* Static/Dynamic Lines */}
+                        {pointHistoryData?.members
+                          .filter((m) => selectedChartMembers.includes(m.name))
+                          .map((m, idx) => {
+                            const colors = ["#3b82f6", "#10b981", "#f59e0b", "#6366f1", "#8b5cf6", "#ec4899", "#14b8a6"];
+                            const color = colors[idx % colors.length];
+                            return (
+                              <Line
+                                key={m.id}
+                                type="monotone"
+                                dataKey={m.name}
+                                stroke={color}
+                                strokeWidth={2}
+                                dot={{ r: 3 }}
+                                activeDot={{ r: 5 }}
+                              />
+                            );
+                          })}
+                        
+                        {/* Global Weekly Average line */}
+                        <Line
+                          type="monotone"
+                          dataKey="Weekly Average (週平均)"
+                          stroke="#ec4899"
+                          strokeWidth={3}
+                          strokeDasharray="5 5"
+                          dot={{ r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </TabsContent>
@@ -868,6 +1017,27 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Form Column */}
             <div className="lg:col-span-7 space-y-6">
+              {editingBroadcast && (
+                <div className="bg-primary/10 border border-primary/20 p-3.5 rounded-xl flex items-center justify-between text-xs font-bold text-primary animate-fade-in shadow-xs">
+                  <span className="flex items-center gap-1.5">
+                    ✏️ 現在『{editingBroadcast.oldTitle}』を編集して再送信するモードです。
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotifyTitle("");
+                      setNotifyMessage("");
+                      setNotifyType("general");
+                      setConfirmSend(false);
+                      setEditingBroadcast(null);
+                    }}
+                    className="text-muted-foreground hover:text-foreground text-[10px] font-bold px-2 py-1 rounded bg-muted/40 hover:bg-muted/80 transition-colors"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              )}
+
               <div className="premium-card rounded-2xl p-6 space-y-4 border border-border shadow-sm">
                 <div className="space-y-2">
                   <Label htmlFor="notify-title" className="text-xs font-bold text-foreground">お知らせタイトル (Title) *</Label>
@@ -934,29 +1104,56 @@ export default function AdminPage() {
 
                 {/* Send Button */}
                 <Button
-                  onClick={() => sendGlobalNotificationMut.mutate({
-                    title: notifyTitle,
-                    message: notifyMessage,
-                    type: notifyType as any
-                  })}
+                  onClick={() => {
+                    if (editingBroadcast) {
+                      updateBroadcastMut.mutate({
+                        oldTitle: editingBroadcast.oldTitle,
+                        oldMessage: editingBroadcast.oldMessage,
+                        oldType: editingBroadcast.oldType as any,
+                        newTitle: notifyTitle,
+                        newMessage: notifyMessage,
+                        newType: notifyType as any
+                      });
+                    } else {
+                      sendGlobalNotificationMut.mutate({
+                        title: notifyTitle,
+                        message: notifyMessage,
+                        type: notifyType as any
+                      });
+                    }
+                  }}
                   disabled={
                     !notifyTitle.trim() ||
                     !notifyMessage.trim() ||
                     !confirmSend ||
-                    sendGlobalNotificationMut.isPending
+                    (editingBroadcast ? updateBroadcastMut.isPending : sendGlobalNotificationMut.isPending)
                   }
                   className="w-full rounded-xl pride-gradient text-white h-11 text-sm font-bold gap-2 shadow-lg shadow-primary/20 hover:brightness-105 active:scale-[0.99] transition-all duration-150"
                 >
-                  {sendGlobalNotificationMut.isPending ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      お知らせを配信中...
-                    </>
+                  {editingBroadcast ? (
+                    updateBroadcastMut.isPending ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        更新中...
+                      </>
+                    ) : (
+                      <>
+                        <Check size={15} />
+                        お知らせを更新して再送信する
+                      </>
+                    )
                   ) : (
-                    <>
-                      <Send size={15} />
-                      全体へお知らせを一斉配信する
-                    </>
+                    sendGlobalNotificationMut.isPending ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        お知らせを配信中...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={15} />
+                        全体へお知らせを一斉配信する
+                      </>
+                    )
                   )}
                 </Button>
               </div>
@@ -1035,6 +1232,107 @@ export default function AdminPage() {
                   プレビューは受講生のデスクトップおよびモバイルの標準表示サイズに対応しています。
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Sent Broadcast History Section */}
+          <div className="premium-card rounded-2xl p-6 border border-border shadow-sm mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Bell size={18} className="text-primary" />
+              <h3 className="font-serif text-lg font-bold text-foreground">配信履歴一覧 (Sent Broadcast History)</h3>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">配信日時 (Date)</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">カテゴリー (Type)</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">タイトル (Title)</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">メッセージ内容 (Message)</th>
+                    <th className="text-center text-xs font-bold text-muted-foreground px-4 py-3 w-32">操作 (Actions)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!sentBroadcasts || sentBroadcasts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-xs text-muted-foreground font-medium">
+                        配信履歴はありません
+                      </td>
+                    </tr>
+                  ) : (
+                    sentBroadcasts.map((b, idx) => (
+                      <tr key={idx} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                        <td className="px-4 py-3 text-xs text-muted-foreground font-medium whitespace-nowrap">
+                          {b.createdAt ? new Date(b.createdAt).toLocaleString("ja-JP", { hour12: false }) : "不明"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            "text-[10px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap",
+                            b.type === "general" && "bg-blue-100/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300",
+                            b.type === "new_lesson" && "bg-green-100/50 dark:bg-green-950/20 text-green-700 dark:text-green-300",
+                            b.type === "login_bonus" && "bg-orange-100/50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300",
+                            b.type === "payment_failed" && "bg-red-100/50 dark:bg-red-950/20 text-red-700 dark:text-red-300"
+                          )}>
+                            {b.type === "general" && "一般"}
+                            {b.type === "new_lesson" && "新規レッスン"}
+                            {b.type === "login_bonus" && "アクティビティ"}
+                            {b.type === "payment_failed" && "アラート"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-bold text-foreground truncate max-w-[180px]" title={b.title}>
+                          {b.title}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[300px]" title={b.message}>
+                          {b.message}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setEditingBroadcast({
+                                  oldTitle: b.title,
+                                  oldMessage: b.message,
+                                  oldType: b.type
+                                });
+                                setNotifyTitle(b.title);
+                                setNotifyMessage(b.message);
+                                setNotifyType(b.type as any);
+                                setConfirmSend(true); // Auto-confirm when editing to make it smoother
+                                // Scroll up to the notification tab form section
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              title="編集して再投稿"
+                            >
+                              <Pencil size={13} className="text-foreground" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              onClick={() => {
+                                if (confirm(`「${b.title}」を削除してもよろしいですか？（※全受講生の通知ドロワーから消去されます）`)) {
+                                  deleteBroadcastMut.mutate({
+                                    title: b.title,
+                                    message: b.message,
+                                    type: b.type
+                                  });
+                                }
+                              }}
+                              title="削除"
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </TabsContent>
