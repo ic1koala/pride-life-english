@@ -23,6 +23,14 @@ import {
   InsertMemberTaskProgress,
   pointTransactions,
   InsertPointTransaction,
+  courseNews,
+  InsertCourseNews,
+  threads,
+  InsertThread,
+  courseNewsReads,
+  InsertCourseNewsRead,
+  threadReads,
+  InsertThreadRead,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -35,6 +43,100 @@ let mockActiveCourse: "star" | "knowledge" = "star";
 let mockAvatarUrl: string | null = null;
 const mockTaskProgressStore: Array<{ userId: number, lessonId: number, taskKey: string, pointsEarned: number }> = [];
 const mockMilestonesStore: Array<{ userId: number, badgeType: string, badgeLabel: string }> = [];
+
+// ─── CMS Mock Data Store ───────────────────────────────────────────────────────
+export const mockCourseNewsStore: Array<{
+  id: number;
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  createdAt: Date;
+}> = [
+  {
+    id: 1,
+    title: "授業の進め方について",
+    content: "Pride Life Englishへお越しいただきありがとうございます！\n\n本コースは毎日ログインして、レッスン講義動画の視聴、ジャーナリング入力、スピーキング練習をバランスよく進めるように設計されています。\n\n☆コース（フルコース）では最大 520 pt / レッスンを獲得できますので、楽しみながら毎日コツコツ取り組んでみてください。ご自身のペースを崩さず、誇り高く英語を身につけていきましょう！🌈",
+    imageUrl: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=600&auto=format&fit=crop",
+    videoUrl: null,
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+  },
+  {
+    id: 2,
+    title: "天気のお知らせ",
+    content: "現在、梅雨や荒天の時期が続いていますが、Pride Life Englishはオンラインプラットフォームのため、どこからでも受講可能です。🌧️\n\nお部屋でハーブティーを飲みながら、リラックスしてレッスン動画を視聴してみませんか？快適な空間で心にゆとりを持って学んでいきましょう！✨",
+    imageUrl: null,
+    videoUrl: null,
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago (New!)
+  },
+  {
+    id: 3,
+    title: "news",
+    content: "受講生ダッシュボードが新しく機能拡張されました！🎉\n\nこの「コースニュース」と「使い方スレッド」の一覧セクションが新設され、お知らせの閲覧と既読管理がよりスマートになりました。\n\n管理者パネルからは、テキストに加え、画像や動画を含んだ高機能なお知らせやガイド記事を即時に投稿・配信できるようになっています。ぜひフルにご活用ください！",
+    imageUrl: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop",
+    videoUrl: "",
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago (New!)
+  }
+];
+
+export const mockThreadsStore: Array<{
+  id: number;
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}> = [
+  {
+    id: 1,
+    title: "6月11日 テストのプリント",
+    content: "6月11日に予定されているオンライン小テストの配布資料と使い方ガイドです。\n\n以下の手順に従って準備を進めてください：\n1. マイページの「年間スケジュール」からテスト範囲を確認します。\n2. これまで完了したレッスンから、動画スライドのキーフレーズを復習します。\n3. 当日公開されるテスト問題用リンクをクリックして受験してください。\n\nテストに関して不明点がある場合は、Q&A掲示板にてお気軽にご質問ください！📄✨",
+    imageUrl: null,
+    videoUrl: null,
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // updated 1 day ago
+  },
+  {
+    id: 2,
+    title: "掲示板って",
+    content: "受講生同士やコーチ陣と繋がることができる「Q&A掲示板」の使い方ガイドです。\n\n掲示板では、英語の質問だけでなく、日々の学習の気づき、モチベーションの維持方法、コミュニティ内での励まし合いなどを自由に投稿できます。💬\n\n【利用ルール】\n・他の受講生の多様なアイデンティティや意見を常に尊重してください。\n・プライバシーに関わる情報は慎重に取り扱いましょう。\n・良い投稿には「いいね！」ボタンを押して応援し合いましょう！❤️",
+    imageUrl: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?q=80&w=600&auto=format&fit=crop",
+    videoUrl: null,
+    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: 3,
+    title: "テスト講義E リマインダテスト",
+    content: "オンラインで開催される特別セミナー「講義E」の参加方法とリマインダーです。\n\n【開催日時】\n今週末の土曜日 20:00〜21:00\n\n【参加方法】\n時間になりましたら、このスレッドまたはメールにて配信されるZoomミーティングリンクからご入場ください。講義では、ネイティブコーチによるリアルタイム発音トレーニングを行います。ぜひご参加ください！🎥✨",
+    imageUrl: null,
+    videoUrl: null,
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: 4,
+    title: "U1 穴埋め テスト",
+    content: "Unit 1（Week 1〜4）の内容をカバーする自己チェック用の穴埋め小テストの使い方です。\n\n単語のスペリングや重要フレーズの構文が正しく定着しているかを測定できます。間違えた問題は、何度でも解き直して復習に役立てましょう！💪",
+    imageUrl: null,
+    videoUrl: null,
+    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: 5,
+    title: "第1回授業（中央棟） ＞ URLリンクのテスト...",
+    content: "オフライン合同スクーリング「第1回授業」にお越しいただく際の案内と、使用するデジタル教材URLリンク集です。\n\n【持ち物・事前準備】\n・スマートフォンまたはタブレット端末\n・イヤホン（スピーキング確認用）\n\n授業で使用するワークシートやアンケートフォームへのURLリンク集はこちらからいつでもアクセス可能です。当日はどうぞお気をつけてお越しください！🗺️",
+    imageUrl: null,
+    videoUrl: null,
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+  }
+];
+
+export const mockCourseNewsReadsStore: Array<{ userId: number; newsId: number }> = [];
+export const mockThreadReadsStore: Array<{ userId: number; threadId: number }> = [];
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -1110,3 +1212,303 @@ export async function updateAdminBroadcast(
     console.warn("[Database] Failed to update admin broadcast:", e);
   }
 }
+
+// ─── Course News & Threads System ─────────────────────────────────────────────
+
+export async function getCourseNews(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    // Mock Mode
+    return mockCourseNewsStore.map((news) => {
+      const isRead = mockCourseNewsReadsStore.some(
+        (r) => r.userId === userId && r.newsId === news.id
+      );
+      const isNew = !isRead && (Date.now() - new Date(news.createdAt).getTime()) < 3 * 24 * 60 * 60 * 1000;
+      return {
+        ...news,
+        createdAt: news.createdAt.toISOString(),
+        isRead,
+        isNew,
+      };
+    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  try {
+    const allNews = await db.select().from(courseNews).orderBy(desc(courseNews.createdAt));
+    const reads = await db.select().from(courseNewsReads).where(eq(courseNewsReads.userId, userId));
+    const readIds = new Set(reads.map((r) => r.newsId));
+
+    return allNews.map((news) => {
+      const isRead = readIds.has(news.id);
+      const isNew = !isRead && (Date.now() - new Date(news.createdAt).getTime()) < 3 * 24 * 60 * 60 * 1000;
+      return {
+        ...news,
+        createdAt: news.createdAt.toISOString(),
+        isRead,
+        isNew,
+      };
+    });
+  } catch (e) {
+    console.warn("[Database] Failed to get course news:", e);
+    return [];
+  }
+}
+
+export async function getThreads(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    // Mock Mode
+    return mockThreadsStore.map((thread) => {
+      const isRead = mockThreadReadsStore.some(
+        (r) => r.userId === userId && r.threadId === thread.id
+      );
+      const isNew = !isRead && (Date.now() - new Date(thread.createdAt).getTime()) < 3 * 24 * 60 * 60 * 1000;
+      return {
+        ...thread,
+        createdAt: thread.createdAt.toISOString(),
+        updatedAt: thread.updatedAt.toISOString(),
+        isRead,
+        isNew,
+      };
+    }).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
+  try {
+    const allThreads = await db.select().from(threads).orderBy(desc(threads.updatedAt));
+    const reads = await db.select().from(threadReads).where(eq(threadReads.userId, userId));
+    const readIds = new Set(reads.map((r) => r.threadId));
+
+    return allThreads.map((thread) => {
+      const isRead = readIds.has(thread.id);
+      const isNew = !isRead && (Date.now() - new Date(thread.createdAt).getTime()) < 3 * 24 * 60 * 60 * 1000;
+      return {
+        ...thread,
+        createdAt: thread.createdAt.toISOString(),
+        updatedAt: thread.updatedAt.toISOString(),
+        isRead,
+        isNew,
+      };
+    });
+  } catch (e) {
+    console.warn("[Database] Failed to get threads:", e);
+    return [];
+  }
+}
+
+export async function markCourseNewsAsRead(userId: number, newsId: number) {
+  const db = await getDb();
+  if (!db) {
+    const exists = mockCourseNewsReadsStore.some(
+      (r) => r.userId === userId && r.newsId === newsId
+    );
+    if (!exists) {
+      mockCourseNewsReadsStore.push({ userId, newsId });
+    }
+    return { success: true };
+  }
+
+  try {
+    const existing = await db
+      .select()
+      .from(courseNewsReads)
+      .where(and(eq(courseNewsReads.userId, userId), eq(courseNewsReads.newsId, newsId)))
+      .limit(1);
+
+    if (existing.length === 0) {
+      await db.insert(courseNewsReads).values({ userId, newsId });
+    }
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to mark course news as read:", e);
+    return { success: false };
+  }
+}
+
+export async function markThreadAsRead(userId: number, threadId: number) {
+  const db = await getDb();
+  if (!db) {
+    const exists = mockThreadReadsStore.some(
+      (r) => r.userId === userId && r.threadId === threadId
+    );
+    if (!exists) {
+      mockThreadReadsStore.push({ userId, threadId });
+    }
+    return { success: true };
+  }
+
+  try {
+    const existing = await db
+      .select()
+      .from(threadReads)
+      .where(and(eq(threadReads.userId, userId), eq(threadReads.threadId, threadId)))
+      .limit(1);
+
+    if (existing.length === 0) {
+      await db.insert(threadReads).values({ userId, threadId });
+    }
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to mark thread as read:", e);
+    return { success: false };
+  }
+}
+
+export async function createCourseNews(data: InsertCourseNews) {
+  const db = await getDb();
+  if (!db) {
+    const newId = mockCourseNewsStore.length > 0 ? Math.max(...mockCourseNewsStore.map((n) => n.id)) + 1 : 1;
+    const newItem = {
+      id: newId,
+      title: data.title,
+      content: data.content,
+      imageUrl: data.imageUrl ?? null,
+      videoUrl: data.videoUrl ?? null,
+      createdAt: new Date(),
+    };
+    mockCourseNewsStore.push(newItem);
+    return newItem;
+  }
+
+  try {
+    await db.insert(courseNews).values(data);
+    const result = await db.select().from(courseNews).orderBy(desc(courseNews.createdAt)).limit(1);
+    return result[0];
+  } catch (e) {
+    console.warn("[Database] Failed to create course news:", e);
+    return undefined;
+  }
+}
+
+export async function deleteCourseNews(id: number) {
+  const db = await getDb();
+  if (!db) {
+    const idx = mockCourseNewsStore.findIndex((n) => n.id === id);
+    if (idx !== -1) {
+      mockCourseNewsStore.splice(idx, 1);
+    }
+    // Clean reads
+    let i = mockCourseNewsReadsStore.length;
+    while (i--) {
+      if (mockCourseNewsReadsStore[i].newsId === id) {
+        mockCourseNewsReadsStore.splice(i, 1);
+      }
+    }
+    return { success: true };
+  }
+
+  try {
+    await db.delete(courseNews).where(eq(courseNews.id, id));
+    await db.delete(courseNewsReads).where(eq(courseNewsReads.newsId, id));
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to delete course news:", e);
+    return { success: false };
+  }
+}
+
+export async function createThread(data: InsertThread) {
+  const db = await getDb();
+  if (!db) {
+    const newId = mockThreadsStore.length > 0 ? Math.max(...mockThreadsStore.map((t) => t.id)) + 1 : 1;
+    const newItem = {
+      id: newId,
+      title: data.title,
+      content: data.content,
+      imageUrl: data.imageUrl ?? null,
+      videoUrl: data.videoUrl ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockThreadsStore.push(newItem);
+    return newItem;
+  }
+
+  try {
+    await db.insert(threads).values(data);
+    const result = await db.select().from(threads).orderBy(desc(threads.createdAt)).limit(1);
+    return result[0];
+  } catch (e) {
+    console.warn("[Database] Failed to create thread:", e);
+    return undefined;
+  }
+}
+
+export async function updateThread(id: number, data: Partial<InsertThread>) {
+  const db = await getDb();
+  if (!db) {
+    const idx = mockThreadsStore.findIndex((t) => t.id === id);
+    if (idx !== -1) {
+      mockThreadsStore[idx] = {
+        ...mockThreadsStore[idx],
+        title: data.title ?? mockThreadsStore[idx].title,
+        content: data.content ?? mockThreadsStore[idx].content,
+        imageUrl: data.imageUrl !== undefined ? data.imageUrl : mockThreadsStore[idx].imageUrl,
+        videoUrl: data.videoUrl !== undefined ? data.videoUrl : mockThreadsStore[idx].videoUrl,
+        updatedAt: new Date(),
+      };
+    }
+    return { success: true };
+  }
+
+  try {
+    await db.update(threads).set({ ...data, updatedAt: new Date() }).where(eq(threads.id, id));
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to update thread:", e);
+    return { success: false };
+  }
+}
+
+export async function deleteThread(id: number) {
+  const db = await getDb();
+  if (!db) {
+    const idx = mockThreadsStore.findIndex((t) => t.id === id);
+    if (idx !== -1) {
+      mockThreadsStore.splice(idx, 1);
+    }
+    // Clean reads
+    let i = mockThreadReadsStore.length;
+    while (i--) {
+      if (mockThreadReadsStore[i].threadId === id) {
+        mockThreadReadsStore.splice(i, 1);
+      }
+    }
+    return { success: true };
+  }
+
+  try {
+    await db.delete(threads).where(eq(threads.id, id));
+    await db.delete(threadReads).where(eq(threadReads.threadId, id));
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to delete thread:", e);
+    return { success: false };
+  }
+}
+
+export async function updateCourseNews(id: number, data: Partial<InsertCourseNews>) {
+  const db = await getDb();
+  if (!db) {
+    const idx = mockCourseNewsStore.findIndex((n) => n.id === id);
+    if (idx !== -1) {
+      mockCourseNewsStore[idx] = {
+        ...mockCourseNewsStore[idx],
+        title: data.title ?? mockCourseNewsStore[idx].title,
+        content: data.content ?? mockCourseNewsStore[idx].content,
+        imageUrl: data.imageUrl !== undefined ? data.imageUrl : mockCourseNewsStore[idx].imageUrl,
+        videoUrl: data.videoUrl !== undefined ? data.videoUrl : mockCourseNewsStore[idx].videoUrl,
+      };
+    }
+    return { success: true };
+  }
+
+  try {
+    await db.update(courseNews).set(data).where(eq(courseNews.id, id));
+    return { success: true };
+  } catch (e) {
+    console.warn("[Database] Failed to update course news:", e);
+    return { success: false };
+  }
+}
+
+

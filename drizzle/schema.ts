@@ -202,3 +202,53 @@ export const pointTransactions = mysqlTable("pointTransactions", {
 
 export type PointTransaction = typeof pointTransactions.$inferSelect;
 export type InsertPointTransaction = typeof pointTransactions.$inferInsert;
+
+// ─── Course News ────────────────────────────────────────────────────────────
+export const courseNews = mysqlTable("courseNews", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 256 }).notNull(),
+  content: text("content").notNull(),
+  imageUrl: varchar("imageUrl", { length: 512 }),
+  videoUrl: varchar("videoUrl", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CourseNews = typeof courseNews.$inferSelect;
+export type InsertCourseNews = typeof courseNews.$inferInsert;
+
+// ─── Threads (Updated Order) ────────────────────────────────────────────────
+export const threads = mysqlTable("threads", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 256 }).notNull(),
+  content: text("content").notNull(),
+  imageUrl: varchar("imageUrl", { length: 512 }),
+  videoUrl: varchar("videoUrl", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Thread = typeof threads.$inferSelect;
+export type InsertThread = typeof threads.$inferInsert;
+
+// ─── Course News Reads ───────────────────────────────────────────────────────
+export const courseNewsReads = mysqlTable("courseNewsReads", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  newsId: int("newsId").notNull(),
+  readAt: timestamp("readAt").defaultNow().notNull(),
+});
+
+export type CourseNewsRead = typeof courseNewsReads.$inferSelect;
+export type InsertCourseNewsRead = typeof courseNewsReads.$inferInsert;
+
+// ─── Thread Reads ────────────────────────────────────────────────────────────
+export const threadReads = mysqlTable("threadReads", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  threadId: int("threadId").notNull(),
+  readAt: timestamp("readAt").defaultNow().notNull(),
+});
+
+export type ThreadRead = typeof threadReads.$inferSelect;
+export type InsertThreadRead = typeof threadReads.$inferInsert;
+

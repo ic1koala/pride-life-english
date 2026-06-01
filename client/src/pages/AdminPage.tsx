@@ -16,7 +16,8 @@ import {
 import {
   Shield, Users, Search, TrendingUp, CheckCircle2, Loader2, BookOpen,
   Plus, Pencil, Trash2, Eye, EyeOff, HelpCircle, Trophy, Bell, Send,
-  Flame, Star, Award, AlertTriangle, Check
+  Flame, Star, Award, AlertTriangle, Check, Layers, Megaphone, MessageSquare,
+  Video, ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -98,6 +99,81 @@ export default function AdminPage() {
     oldMessage: string;
     oldType: string;
   } | null>(null);
+
+  // ─── CMS states ─────────────────────────────────────────────────────────────
+  const [newsDialogOpen, setNewsDialogOpen] = useState(false);
+  const [editingNewsId, setEditingNewsId] = useState<number | null>(null);
+  const [newsTitle, setNewsTitle] = useState("");
+  const [newsContent, setNewsContent] = useState("");
+  const [newsImageUrl, setNewsImageUrl] = useState("");
+  const [newsVideoUrl, setNewsVideoUrl] = useState("");
+  const [newsDeleteConfirmId, setNewsDeleteConfirmId] = useState<number | null>(null);
+
+  const [threadDialogOpen, setThreadDialogOpen] = useState(false);
+  const [editingThreadId, setEditingThreadId] = useState<number | null>(null);
+  const [threadTitle, setThreadTitle] = useState("");
+  const [threadContent, setThreadContent] = useState("");
+  const [threadImageUrl, setThreadImageUrl] = useState("");
+  const [threadVideoUrl, setThreadVideoUrl] = useState("");
+  const [threadDeleteConfirmId, setThreadDeleteConfirmId] = useState<number | null>(null);
+
+  // CMS queries & mutations
+  const { data: adminNewsList, refetch: refetchAdminNews, isLoading: adminNewsLoading } = trpc.courseNews.list.useQuery();
+  const { data: adminThreadsList, refetch: refetchAdminThreads, isLoading: adminThreadsLoading } = trpc.threads.list.useQuery();
+
+  const createNewsMut = trpc.admin.createCourseNews.useMutation({
+    onSuccess: () => {
+      toast.success("お知らせを追加しました！");
+      refetchAdminNews();
+      setNewsDialogOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateNewsMut = trpc.admin.updateCourseNews.useMutation({
+    onSuccess: () => {
+      toast.success("お知らせを更新しました！");
+      refetchAdminNews();
+      setNewsDialogOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteNewsMut = trpc.admin.deleteCourseNews.useMutation({
+    onSuccess: () => {
+      toast.success("お知らせを削除しました。");
+      refetchAdminNews();
+      setNewsDeleteConfirmId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const createThreadMut = trpc.admin.createThread.useMutation({
+    onSuccess: () => {
+      toast.success("スレッドを作成しました！");
+      refetchAdminThreads();
+      setThreadDialogOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateThreadMut = trpc.admin.updateThread.useMutation({
+    onSuccess: () => {
+      toast.success("スレッドを更新しました！");
+      refetchAdminThreads();
+      setThreadDialogOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteThreadMut = trpc.admin.deleteThread.useMutation({
+    onSuccess: () => {
+      toast.success("スレッドを削除しました。");
+      refetchAdminThreads();
+      setThreadDeleteConfirmId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   // ─── Members data ───────────────────────────────────────────────────────────
   const { data: members, isLoading } = trpc.admin.members.useQuery();
@@ -265,6 +341,84 @@ export default function AdminPage() {
     }
   };
 
+  const openCreateNewsDialog = () => {
+    setEditingNewsId(null);
+    setNewsTitle("");
+    setNewsContent("");
+    setNewsImageUrl("");
+    setNewsVideoUrl("");
+    setNewsDialogOpen(true);
+  };
+
+  const openEditNewsDialog = (news: any) => {
+    setEditingNewsId(news.id);
+    setNewsTitle(news.title);
+    setNewsContent(news.content);
+    setNewsImageUrl(news.imageUrl ?? "");
+    setNewsVideoUrl(news.videoUrl ?? "");
+    setNewsDialogOpen(true);
+  };
+
+  const handleSaveNews = () => {
+    if (!newsTitle.trim()) { toast.error("タイトルは必須です"); return; }
+    if (!newsContent.trim()) { toast.error("本文は必須です"); return; }
+    if (editingNewsId) {
+      updateNewsMut.mutate({
+        id: editingNewsId,
+        title: newsTitle,
+        content: newsContent,
+        imageUrl: newsImageUrl.trim() ? newsImageUrl : null,
+        videoUrl: newsVideoUrl.trim() ? newsVideoUrl : null,
+      });
+    } else {
+      createNewsMut.mutate({
+        title: newsTitle,
+        content: newsContent,
+        imageUrl: newsImageUrl.trim() ? newsImageUrl : null,
+        videoUrl: newsVideoUrl.trim() ? newsVideoUrl : null,
+      });
+    }
+  };
+
+  const openCreateThreadDialog = () => {
+    setEditingThreadId(null);
+    setThreadTitle("");
+    setThreadContent("");
+    setThreadImageUrl("");
+    setThreadVideoUrl("");
+    setThreadDialogOpen(true);
+  };
+
+  const openEditThreadDialog = (thread: any) => {
+    setEditingThreadId(thread.id);
+    setThreadTitle(thread.title);
+    setThreadContent(thread.content);
+    setThreadImageUrl(thread.imageUrl ?? "");
+    setThreadVideoUrl(thread.videoUrl ?? "");
+    setThreadDialogOpen(true);
+  };
+
+  const handleSaveThread = () => {
+    if (!threadTitle.trim()) { toast.error("タイトルは必須です"); return; }
+    if (!threadContent.trim()) { toast.error("本文は必須です"); return; }
+    if (editingThreadId) {
+      updateThreadMut.mutate({
+        id: editingThreadId,
+        title: threadTitle,
+        content: threadContent,
+        imageUrl: threadImageUrl.trim() ? threadImageUrl : null,
+        videoUrl: threadVideoUrl.trim() ? threadVideoUrl : null,
+      });
+    } else {
+      createThreadMut.mutate({
+        title: threadTitle,
+        content: threadContent,
+        imageUrl: threadImageUrl.trim() ? threadImageUrl : null,
+        videoUrl: threadVideoUrl.trim() ? threadVideoUrl : null,
+      });
+    }
+  };
+
   const isSaving = createLessonMut.isPending || updateLessonMut.isPending;
 
   return (
@@ -306,6 +460,9 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell size={16} /> Broadcast
+          </TabsTrigger>
+          <TabsTrigger value="cms" className="gap-2">
+            <Layers size={16} /> CMS
           </TabsTrigger>
         </TabsList>
 
@@ -1335,6 +1492,380 @@ export default function AdminPage() {
               </table>
             </div>
           </div>
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* CMS TAB                                                               */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="cms" className="space-y-6 mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-2xl font-bold text-foreground">コンテンツ管理 (CMS / お知らせ＆スレッド)</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">受講生ダッシュボードの「お知らせ」と「スレッド」を管理画面から編集・公開します。</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {/* Course News Column */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif text-lg font-bold text-foreground flex items-center gap-2">
+                  <Megaphone size={18} className="text-primary" />
+                  📢 お知らせ管理 (Course News)
+                </h3>
+                <Button onClick={openCreateNewsDialog} size="sm" className="rounded-xl gap-1.5 shadow-sm">
+                  <Plus size={14} /> お知らせ追加
+                </Button>
+              </div>
+
+              <div className="premium-card rounded-2xl overflow-hidden shadow-sm border border-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">日付 (Date)</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">タイトル (Title)</th>
+                        <th className="text-center text-xs font-bold text-muted-foreground px-4 py-3 w-16">メディア</th>
+                        <th className="text-center text-xs font-bold text-muted-foreground px-4 py-3 w-24">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminNewsLoading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                          <tr key={i} className="border-b border-border">
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-8 mx-auto" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-8 w-16 mx-auto" /></td>
+                          </tr>
+                        ))
+                      ) : !adminNewsList || adminNewsList.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-xs text-muted-foreground font-medium">
+                            登録されたお知らせはありません
+                          </td>
+                        </tr>
+                      ) : (
+                        adminNewsList.map((n) => (
+                          <tr key={n.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                            <td className="px-4 py-3 text-xs text-muted-foreground font-medium whitespace-nowrap">
+                              {new Date(n.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3 text-xs font-bold text-foreground truncate max-w-[200px]" title={n.title}>
+                              {n.title}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center gap-1">
+                                {n.imageUrl && <span title="画像あり"><ImageIcon size={12} className="text-blue-500" /></span>}
+                                {n.videoUrl && <span title="動画あり"><Video size={12} className="text-red-500" /></span>}
+                                {!n.imageUrl && !n.videoUrl && <span className="text-[10px] text-muted-foreground/50">—</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => openEditNewsDialog(n)}
+                                  title="編集"
+                                >
+                                  <Pencil size={13} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => setNewsDeleteConfirmId(n.id)}
+                                  title="削除"
+                                >
+                                  <Trash2 size={13} />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Threads Column */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif text-lg font-bold text-foreground flex items-center gap-2">
+                  <MessageSquare size={18} className="text-primary" />
+                  💬 使い方スレッド管理 (Threads)
+                </h3>
+                <Button onClick={openCreateThreadDialog} size="sm" className="rounded-xl gap-1.5 shadow-sm">
+                  <Plus size={14} /> スレッド作成
+                </Button>
+              </div>
+
+              <div className="premium-card rounded-2xl overflow-hidden shadow-sm border border-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">更新順 (Updated)</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3">タイトル (Title)</th>
+                        <th className="text-center text-xs font-bold text-muted-foreground px-4 py-3 w-16">メディア</th>
+                        <th className="text-center text-xs font-bold text-muted-foreground px-4 py-3 w-24">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminThreadsLoading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                          <tr key={i} className="border-b border-border">
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-4 w-8 mx-auto" /></td>
+                            <td className="px-4 py-3"><Skeleton className="h-8 w-16 mx-auto" /></td>
+                          </tr>
+                        ))
+                      ) : !adminThreadsList || adminThreadsList.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-xs text-muted-foreground font-medium">
+                            登録された使い方スレッドはありません
+                          </td>
+                        </tr>
+                      ) : (
+                        adminThreadsList.map((t) => (
+                          <tr key={t.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                            <td className="px-4 py-3 text-xs text-muted-foreground font-medium whitespace-nowrap">
+                              {new Date(t.updatedAt || t.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3 text-xs font-bold text-foreground truncate max-w-[200px]" title={t.title}>
+                              {t.title}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center gap-1">
+                                {t.imageUrl && <span title="画像あり"><ImageIcon size={12} className="text-blue-500" /></span>}
+                                {t.videoUrl && <span title="動画あり"><Video size={12} className="text-red-500" /></span>}
+                                {!t.imageUrl && !t.videoUrl && <span className="text-[10px] text-muted-foreground/50">—</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => openEditThreadDialog(t)}
+                                  title="編集"
+                                >
+                                  <Pencil size={13} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => setThreadDeleteConfirmId(t.id)}
+                                  title="削除"
+                                >
+                                  <Trash2 size={13} />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* NEWS ADD / EDIT DIALOG */}
+          <Dialog open={newsDialogOpen} onOpenChange={setNewsDialogOpen}>
+            <DialogContent className="rounded-2xl max-w-lg p-6 shadow-2xl border-primary/10">
+              <DialogHeader className="pb-2 border-b border-border/20">
+                <DialogTitle className="font-serif text-xl text-foreground">
+                  {editingNewsId ? "お知らせの編集 (Edit Course News)" : "新規お知らせ作成 (Add Course News)"}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>タイトル *</Label>
+                  <Input
+                    value={newsTitle}
+                    onChange={(e) => setNewsTitle(e.target.value)}
+                    placeholder="例: 【アップデート】新機能とレイアウトの改善について"
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>本文 (Markdown対応) *</Label>
+                  <Textarea
+                    value={newsContent}
+                    onChange={(e) => setNewsContent(e.target.value)}
+                    placeholder="お知らせの本文を記入してください。Markdownや改行が有効です。"
+                    rows={6}
+                    className="rounded-xl min-h-[120px]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>画像 URL (任意)</Label>
+                  <Input
+                    value={newsImageUrl}
+                    onChange={(e) => setNewsImageUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/... (空欄の場合は画像なし)"
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>動画 URL (任意)</Label>
+                  <Input
+                    value={newsVideoUrl}
+                    onChange={(e) => setNewsVideoUrl(e.target.value)}
+                    placeholder="https://www.w3schools.com/html/mov_bbb.mp4 (空欄の場合は動画なし)"
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="pt-3 border-t border-border/20">
+                <Button variant="outline" onClick={() => setNewsDialogOpen(false)} className="rounded-xl">
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={handleSaveNews}
+                  disabled={createNewsMut.isPending || updateNewsMut.isPending}
+                  className="rounded-xl gap-2 shadow-sm"
+                >
+                  {(createNewsMut.isPending || updateNewsMut.isPending) && <Loader2 size={16} className="animate-spin" />}
+                  {editingNewsId ? "変更を保存" : "作成する"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* NEWS DELETE CONFIRMATION DIALOG */}
+          <Dialog open={!!newsDeleteConfirmId} onOpenChange={(o) => { if (!o) setNewsDeleteConfirmId(null); }}>
+            <DialogContent className="sm:max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="font-serif text-xl">お知らせを削除しますか？</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                この操作は取り消せません。このお知らせおよびすべての既読データが完全に削除されます。
+              </p>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setNewsDeleteConfirmId(null)} className="rounded-xl">
+                  キャンセル
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => newsDeleteConfirmId && deleteNewsMut.mutate({ id: newsDeleteConfirmId })}
+                  disabled={deleteNewsMut.isPending}
+                  className="rounded-xl gap-2"
+                >
+                  {deleteNewsMut.isPending && <Loader2 size={16} className="animate-spin" />}
+                  削除する
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* THREAD ADD / EDIT DIALOG */}
+          <Dialog open={threadDialogOpen} onOpenChange={setThreadDialogOpen}>
+            <DialogContent className="rounded-2xl max-w-lg p-6 shadow-2xl border-primary/10">
+              <DialogHeader className="pb-2 border-b border-border/20">
+                <DialogTitle className="font-serif text-xl text-foreground">
+                  {editingThreadId ? "スレッドの編集 (Edit Thread)" : "新規スレッド作成 (Add Thread)"}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>タイトル *</Label>
+                  <Input
+                    value={threadTitle}
+                    onChange={(e) => setThreadTitle(e.target.value)}
+                    placeholder="例: ストリークとログインボーナスの仕組みについて"
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>本文 (Markdown対応) *</Label>
+                  <Textarea
+                    value={threadContent}
+                    onChange={(e) => setThreadContent(e.target.value)}
+                    placeholder="使い方の詳細を記入してください。Markdownや改行が有効です。"
+                    rows={6}
+                    className="rounded-xl min-h-[120px]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>画像 URL (任意)</Label>
+                  <Input
+                    value={threadImageUrl}
+                    onChange={(e) => setThreadImageUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/... (空欄の場合は画像なし)"
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>動画 URL (任意)</Label>
+                  <Input
+                    value={threadVideoUrl}
+                    onChange={(e) => setThreadVideoUrl(e.target.value)}
+                    placeholder="https://www.w3schools.com/html/mov_bbb.mp4 (空欄の場合は動画なし)"
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="pt-3 border-t border-border/20">
+                <Button variant="outline" onClick={() => setThreadDialogOpen(false)} className="rounded-xl">
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={handleSaveThread}
+                  disabled={createThreadMut.isPending || updateThreadMut.isPending}
+                  className="rounded-xl gap-2 shadow-sm"
+                >
+                  {(createThreadMut.isPending || updateThreadMut.isPending) && <Loader2 size={16} className="animate-spin" />}
+                  {editingThreadId ? "変更を保存" : "作成する"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* THREAD DELETE CONFIRMATION DIALOG */}
+          <Dialog open={!!threadDeleteConfirmId} onOpenChange={(o) => { if (!o) setThreadDeleteConfirmId(null); }}>
+            <DialogContent className="sm:max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="font-serif text-xl">スレッドを削除しますか？</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                この操作は取り消せません。このスレッドおよびすべての既読データが完全に削除されます。
+              </p>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setThreadDeleteConfirmId(null)} className="rounded-xl">
+                  キャンセル
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => threadDeleteConfirmId && deleteThreadMut.mutate({ id: threadDeleteConfirmId })}
+                  disabled={deleteThreadMut.isPending}
+                  className="rounded-xl gap-2"
+                >
+                  {deleteThreadMut.isPending && <Loader2 size={16} className="animate-spin" />}
+                  削除する
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
 

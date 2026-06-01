@@ -20,6 +20,8 @@ import {
   updateCohort, updateLesson, updateUserSubscription, updateUserSubscriptionByStripeCustomerId,
   upsertLessonProgress, verifyCohortPassword, getAdminPointHistory, getAdminBroadcasts,
   deleteAdminBroadcast, updateAdminBroadcast,
+  getCourseNews, getThreads, markCourseNewsAsRead, markThreadAsRead,
+  createCourseNews, updateCourseNews, deleteCourseNews, createThread, updateThread, deleteThread,
 } from "./db";
 import { storagePut } from "./storage";
 import { PRIDE_LIFE_PRODUCT } from "./products";
@@ -361,6 +363,20 @@ export const appRouter = router({
     markRead: protectedProcedure.mutation(async ({ ctx }) => { await markNotificationsRead(ctx.user.id); return { success: true }; }),
   }),
 
+  courseNews: router({
+    list: memberProcedure.query(async ({ ctx }) => getCourseNews(ctx.user.id)),
+    markRead: memberProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => markCourseNewsAsRead(ctx.user.id, input.id)),
+  }),
+
+  threads: router({
+    list: memberProcedure.query(async ({ ctx }) => getThreads(ctx.user.id)),
+    markRead: memberProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => markThreadAsRead(ctx.user.id, input.id)),
+  }),
+
   admin: router({
     members: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
@@ -559,6 +575,76 @@ export const appRouter = router({
         if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         await toggleLessonPublish(input.id, input.publish);
         return { success: true };
+      }),
+    createCourseNews: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(256),
+        content: z.string().min(1),
+        imageUrl: z.string().nullable().optional(),
+        videoUrl: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return createCourseNews({
+          title: input.title,
+          content: input.content,
+          imageUrl: input.imageUrl ?? null,
+          videoUrl: input.videoUrl ?? null,
+        });
+      }),
+    deleteCourseNews: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return deleteCourseNews(input.id);
+      }),
+    updateCourseNews: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(256).optional(),
+        content: z.string().min(1).optional(),
+        imageUrl: z.string().nullable().optional(),
+        videoUrl: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { id, ...fields } = input;
+        return updateCourseNews(id, fields);
+      }),
+    createThread: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(256),
+        content: z.string().min(1),
+        imageUrl: z.string().nullable().optional(),
+        videoUrl: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return createThread({
+          title: input.title,
+          content: input.content,
+          imageUrl: input.imageUrl ?? null,
+          videoUrl: input.videoUrl ?? null,
+        });
+      }),
+    updateThread: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(256).optional(),
+        content: z.string().min(1).optional(),
+        imageUrl: z.string().nullable().optional(),
+        videoUrl: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const { id, ...fields } = input;
+        return updateThread(id, fields);
+      }),
+    deleteThread: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return deleteThread(input.id);
       }),
   }),
 

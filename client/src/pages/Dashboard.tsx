@@ -8,8 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   BookOpen, Star, Flame, Trophy, Calendar, ChevronRight, ChevronLeft,
   CheckCircle2, Lock, Play, Loader2, Sparkles,
+  Megaphone, MessageSquare, Plus, Video, Image as ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Streamdown } from "streamdown";
 
 const SO_LOGO = "https://lh3.googleusercontent.com/aida-public/AB6AXuDtnqiMEHoVtf95LpFgDutq2MfKUWAZxzQaNo3tvSerDrMnzrO9LTEp9qgtHQln_L6MPE5mQR5YnqQwYjTZXToqk0b6HT-LuvDz0k3H1fRngI5AUqwhoaEfGaPxHFKVXz_kCkywUzOCBERHSyvXuCMkFIap3sAnKg1OwD0OG4z7CsxERgry4OYGqjK4lfKr-YVjaXah7yXXt8QP4AddACZ-eWCoNDNyfSURvOeYstcGA-o-uScjrS8MgZx9vm9nHmRYIdRyKMIt6cc";
 const SLIDE_BG = "https://lh3.googleusercontent.com/aida-public/AB6AXuDPZFyZ09ySrfw7CO6ZjzF_XVw03u52c05zfav0kyEyQ0RRo_s5IsaxgaPtTGxwppEXDkwh4vS_0efAT8Hgre_1C4kBjoo_UQmxvC6a6oIfqrnnEOZwYX40iXcwVXaUAdVOkfBN1RxxKediUzNLXFdZPYGOjm08iRbq-hzllsnCAVG182IGsifoHtSQEv00a-XV52CHAoW6rgTZKjP1silVz2iFTcSWlu0BOFAhH4q1lohks-5MtilhBEio5SoJI0HZgJPIHwgl-E0";
@@ -55,6 +58,82 @@ export default function Dashboard() {
   const seedLessons = trpc.admin.seedLessons.useMutation({
     onSuccess: () => { toast.success("レッスンを作成しました！"); utils.lessons.list.invalidate(); },
   });
+
+  // ─── CMS News & Threads States & Hooks ─────────────────────────────────────────
+  const [selectedNews, setSelectedNews] = useState<any | null>(null);
+  const [selectedThread, setSelectedThread] = useState<any | null>(null);
+  const [isAllNewsOpen, setIsAllNewsOpen] = useState(false);
+  const [isAllThreadsOpen, setIsAllThreadsOpen] = useState(false);
+
+  const [isCMSCreateOpen, setIsCMSCreateOpen] = useState(false);
+  const [createType, setCreateType] = useState<"news" | "thread">("news");
+  const [newsTitle, setNewsTitle] = useState("");
+  const [newsContent, setNewsContent] = useState("");
+  const [newsImageUrl, setNewsImageUrl] = useState("");
+  const [newsVideoUrl, setNewsVideoUrl] = useState("");
+
+  const { data: newsList, refetch: refetchNews, isLoading: newsLoading } = trpc.courseNews.list.useQuery();
+  const { data: threadsList, refetch: refetchThreads, isLoading: threadsLoading } = trpc.threads.list.useQuery();
+
+  const readNewsMut = trpc.courseNews.markRead.useMutation({
+    onSuccess: () => refetchNews(),
+  });
+  const readThreadMut = trpc.threads.markRead.useMutation({
+    onSuccess: () => refetchThreads(),
+  });
+
+  const createNewsMut = trpc.admin.createCourseNews.useMutation({
+    onSuccess: () => {
+      toast.success("ニュースを投稿しました！");
+      refetchNews();
+      setIsCMSCreateOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const createThreadMut = trpc.admin.createThread.useMutation({
+    onSuccess: () => {
+      toast.success("スレッドを作成しました！");
+      refetchThreads();
+      setIsCMSCreateOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleOpenNews = (news: any) => {
+    setSelectedNews(news);
+    if (!news.isRead) {
+      readNewsMut.mutate({ id: news.id });
+    }
+  };
+
+  const handleOpenThread = (thread: any) => {
+    setSelectedThread(thread);
+    if (!thread.isRead) {
+      readThreadMut.mutate({ id: thread.id });
+    }
+  };
+
+  const handleCreateCMS = () => {
+    if (!newsTitle.trim()) { toast.error("タイトルを入力してください"); return; }
+    if (!newsContent.trim()) { toast.error("内容を入力してください"); return; }
+
+    if (createType === "news") {
+      createNewsMut.mutate({
+        title: newsTitle,
+        content: newsContent,
+        imageUrl: newsImageUrl.trim() || null,
+        videoUrl: newsVideoUrl.trim() || null,
+      });
+    } else {
+      createThreadMut.mutate({
+        title: newsTitle,
+        content: newsContent,
+        imageUrl: newsImageUrl.trim() || null,
+        videoUrl: newsVideoUrl.trim() || null,
+      });
+    }
+  };
 
   const totalLessons = progressSummary?.totalLessons ?? 96;
   const completedLessons = progressSummary?.completed ?? 0;
@@ -244,6 +323,190 @@ export default function Dashboard() {
               購入 (500 pt)
             </Button>
           </div>
+        </div>
+
+        {/* ─── Course News & Threads Cards (お知らせ ＆ スレッド) ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* 左半分：コースニュース (Course News) */}
+          <div className="premium-card rounded-2xl p-4 flex flex-col justify-between min-h-[220px]">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-border/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-pink-50 flex items-center justify-center">
+                    <Megaphone size={14} className="text-pink-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">お知らせ</h3>
+                </div>
+                {user?.role === "admin" && (
+                  <Button
+                    onClick={() => {
+                      setCreateType("news");
+                      setNewsTitle("");
+                      setNewsContent("");
+                      setNewsImageUrl("");
+                      setNewsVideoUrl("");
+                      setIsCMSCreateOpen(true);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] px-2 rounded-lg gap-1 border-primary/20 hover:bg-primary/5 text-primary font-bold bg-background"
+                  >
+                    <Plus size={10} />
+                    お知らせ追加
+                  </Button>
+                )}
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2.5">
+                {newsLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex justify-between items-center">
+                      <Skeleton className="h-4 w-2/3 rounded" />
+                      <Skeleton className="h-3 w-16 rounded" />
+                    </div>
+                  ))
+                ) : !newsList || newsList.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-muted-foreground">お知らせはありません</div>
+                ) : (
+                  newsList.slice(0, 5).map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => handleOpenNews(item)}
+                      className="flex items-center justify-between text-xs cursor-pointer group hover:bg-muted/10 p-1 rounded transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
+                        {/* Bullet Icon */}
+                        <span className={cn(
+                          "text-[12px] font-bold shrink-0 transition-colors",
+                          item.isRead ? "text-muted-foreground/40" : "text-[#06C755]"
+                        )}>
+                          ♦
+                        </span>
+                        <span className={cn(
+                          "truncate font-medium transition-colors group-hover:text-primary",
+                          item.isRead ? "text-muted-foreground" : "text-foreground font-bold"
+                        )}>
+                          {item.title}
+                        </span>
+                        {item.isNew && (
+                          <span className="bg-red-500 text-white text-[8px] font-black px-1 rounded scale-90 shrink-0 leading-normal animate-pulse">
+                            NEW
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground/70 font-mono shrink-0">
+                        {item.createdAt.split("T")[0]}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Footer Links */}
+            <div className="flex items-center gap-3.5 mt-4 pt-2 border-t border-border/30 text-[11px] font-semibold text-primary">
+              <span onClick={() => setIsAllNewsOpen(true)} className="cursor-pointer hover:underline flex items-center gap-0.5">
+                〉お知らせ一覧
+              </span>
+              {user?.role === "admin" && (
+                <Link href="/admin?tab=cms">
+                  <span className="cursor-pointer hover:underline flex items-center gap-0.5 text-purple-600">
+                    〉お知らせ管理
+                  </span>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* 右半分：スレッド（更新順） (Threads) */}
+          <div className="premium-card rounded-2xl p-4 flex flex-col justify-between min-h-[220px]">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-border/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-sky-50 flex items-center justify-center">
+                    <MessageSquare size={14} className="text-sky-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">スレッド</h3>
+                </div>
+                {user?.role === "admin" && (
+                  <Button
+                    onClick={() => {
+                      setCreateType("thread");
+                      setNewsTitle("");
+                      setNewsContent("");
+                      setNewsImageUrl("");
+                      setNewsVideoUrl("");
+                      setIsCMSCreateOpen(true);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] px-2 rounded-lg gap-1 border-primary/20 hover:bg-primary/5 text-primary font-bold bg-background"
+                  >
+                    <Plus size={10} />
+                    スレッド作成
+                  </Button>
+                )}
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2.5">
+                {threadsLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex justify-between items-center">
+                      <Skeleton className="h-4 w-2/3 rounded" />
+                      <Skeleton className="h-3 w-16 rounded" />
+                    </div>
+                  ))
+                ) : !threadsList || threadsList.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-muted-foreground">スレッドはありません</div>
+                ) : (
+                  threadsList.slice(0, 5).map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => handleOpenThread(item)}
+                      className="flex items-center justify-between text-xs cursor-pointer group hover:bg-muted/10 p-1 rounded transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
+                        {/* Bullet Icon */}
+                        <span className={cn(
+                          "text-[12px] font-bold shrink-0 transition-colors",
+                          item.isRead ? "text-muted-foreground/40" : "text-[#06C755]"
+                        )}>
+                          ♦
+                        </span>
+                        <span className={cn(
+                          "truncate font-medium transition-colors group-hover:text-primary",
+                          item.isRead ? "text-muted-foreground" : "text-foreground font-bold"
+                        )}>
+                          {item.title}
+                        </span>
+                        {item.isNew && (
+                          <span className="bg-red-500 text-white text-[8px] font-black px-1 rounded scale-90 shrink-0 leading-normal animate-pulse">
+                            NEW
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground/70 font-mono shrink-0">
+                        {item.updatedAt.split("T")[0]}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Footer Links */}
+            <div className="flex items-center gap-3.5 mt-4 pt-2 border-t border-border/30 text-[11px] font-semibold text-primary">
+              <span onClick={() => setIsAllThreadsOpen(true)} className="cursor-pointer hover:underline flex items-center gap-0.5">
+                〉スレッド一覧
+              </span>
+            </div>
+          </div>
+
         </div>
 
         {/* ─── Today's Lesson CTA ─── */}
@@ -474,6 +737,222 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* ─── CMS Dialog Popups ─── */}
+      
+      {/* Detailed News Modal */}
+      <Dialog open={!!selectedNews} onOpenChange={(open) => { if (!open) setSelectedNews(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl font-bold flex items-center gap-2 text-foreground">
+              <Megaphone size={18} className="text-pink-500" />
+              {selectedNews?.title}
+            </DialogTitle>
+            <p className="text-[10px] text-muted-foreground font-mono mt-1">
+              配信日時: {selectedNews && new Date(selectedNews.createdAt).toLocaleString("ja-JP")}
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 pt-2 text-sm text-foreground leading-relaxed">
+            {selectedNews?.imageUrl && (
+              <div className="relative rounded-xl overflow-hidden border border-border bg-slate-100 max-h-[280px] flex items-center justify-center">
+                <img src={selectedNews.imageUrl} alt="" className="max-h-[280px] w-auto object-contain" />
+              </div>
+            )}
+            
+            {selectedNews?.videoUrl && (
+              <div className="relative rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                <video src={selectedNews.videoUrl} controls className="w-full h-full object-contain" />
+              </div>
+            )}
+
+            <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm">
+              <Streamdown>{selectedNews?.content}</Streamdown>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed Thread Modal */}
+      <Dialog open={!!selectedThread} onOpenChange={(open) => { if (!open) setSelectedThread(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl font-bold flex items-center gap-2 text-foreground">
+              <MessageSquare size={18} className="text-sky-500" />
+              {selectedThread?.title}
+            </DialogTitle>
+            <p className="text-[10px] text-muted-foreground font-mono mt-1">
+              最終更新: {selectedThread && new Date(selectedThread.updatedAt).toLocaleString("ja-JP")}
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 pt-2 text-sm text-foreground leading-relaxed">
+            {selectedThread?.imageUrl && (
+              <div className="relative rounded-xl overflow-hidden border border-border bg-slate-100 max-h-[280px] flex items-center justify-center">
+                <img src={selectedThread.imageUrl} alt="" className="max-h-[280px] w-auto object-contain" />
+              </div>
+            )}
+
+            {selectedThread?.videoUrl && (
+              <div className="relative rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                <video src={selectedThread.videoUrl} controls className="w-full h-full object-contain" />
+              </div>
+            )}
+
+            <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm">
+              <Streamdown>{selectedThread?.content}</Streamdown>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* All News Modal */}
+      <Dialog open={isAllNewsOpen} onOpenChange={setIsAllNewsOpen}>
+        <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg font-bold flex items-center gap-2 text-foreground">
+              <Megaphone size={18} className="text-pink-500" />
+              お知らせ一覧
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-4">
+            {newsList?.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => { setIsAllNewsOpen(false); handleOpenNews(item); }}
+                className="flex items-center justify-between p-2.5 rounded-xl border border-border hover:bg-muted/30 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
+                  <span className={cn(
+                    "text-[12px] font-bold shrink-0",
+                    item.isRead ? "text-muted-foreground/40" : "text-[#06C755]"
+                  )}>
+                    ♦
+                  </span>
+                  <span className={cn(
+                    "truncate font-medium text-xs sm:text-sm",
+                    item.isRead ? "text-muted-foreground" : "text-foreground font-bold"
+                  )}>
+                    {item.title}
+                  </span>
+                  {item.isNew && (
+                    <span className="bg-red-500 text-white text-[8px] font-black px-1 rounded animate-pulse shrink-0 scale-90">
+                      NEW
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground/60 font-mono">
+                  {item.createdAt.split("T")[0]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* All Threads Modal */}
+      <Dialog open={isAllThreadsOpen} onOpenChange={setIsAllThreadsOpen}>
+        <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg font-bold flex items-center gap-2 text-foreground">
+              <MessageSquare size={18} className="text-sky-500" />
+              スレッド一覧
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-4">
+            {threadsList?.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => { setIsAllThreadsOpen(false); handleOpenThread(item); }}
+                className="flex items-center justify-between p-2.5 rounded-xl border border-border hover:bg-muted/30 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
+                  <span className={cn(
+                    "text-[12px] font-bold shrink-0",
+                    item.isRead ? "text-muted-foreground/40" : "text-[#06C755]"
+                  )}>
+                    ♦
+                  </span>
+                  <span className={cn(
+                    "truncate font-medium text-xs sm:text-sm",
+                    item.isRead ? "text-muted-foreground" : "text-foreground font-bold"
+                  )}>
+                    {item.title}
+                  </span>
+                  {item.isNew && (
+                    <span className="bg-red-500 text-white text-[8px] font-black px-1 rounded animate-pulse shrink-0 scale-90">
+                      NEW
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground/60 font-mono">
+                  {item.updatedAt.split("T")[0]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin CMS Create Modal */}
+      <Dialog open={isCMSCreateOpen} onOpenChange={setIsCMSCreateOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg font-bold text-foreground">
+              {createType === "news" ? "📢 新規お知らせ追加" : "💬 新規使い方スレッド作成"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-3 text-xs sm:text-sm">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground">タイトル</label>
+              <input
+                value={newsTitle}
+                onChange={(e) => setNewsTitle(e.target.value)}
+                placeholder="タイトルを入力..."
+                className="w-full p-2.5 text-xs sm:text-sm border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary bg-background text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground">内容（Markdown対応）</label>
+              <textarea
+                rows={5}
+                value={newsContent}
+                onChange={(e) => setNewsContent(e.target.value)}
+                placeholder="本文を入力..."
+                className="w-full p-2.5 text-xs sm:text-sm border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary resize-none bg-background text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground">画像URL (任意)</label>
+              <input
+                value={newsImageUrl}
+                onChange={(e) => setNewsImageUrl(e.target.value)}
+                placeholder="https://example.com/image.png"
+                className="w-full p-2.5 text-xs sm:text-sm border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary bg-background text-foreground"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-muted-foreground">動画URL (任意)</label>
+              <input
+                value={newsVideoUrl}
+                onChange={(e) => setNewsVideoUrl(e.target.value)}
+                placeholder="https://example.com/video.mp4"
+                className="w-full p-2.5 text-xs sm:text-sm border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary bg-background text-foreground"
+              />
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button onClick={handleCreateCMS} className="flex-1 rounded-xl h-10 font-bold text-xs sm:text-sm">
+                {createNewsMut.isPending || createThreadMut.isPending ? (
+                  <Loader2 className="animate-spin mr-1.5" size={14} />
+                ) : null}
+                作成する
+              </Button>
+              <Button onClick={() => setIsCMSCreateOpen(false)} variant="outline" className="rounded-xl h-10 font-bold text-xs sm:text-sm">
+                キャンセル
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
