@@ -86,3 +86,42 @@
 - [x] Admin UI: Publish toggle per lesson row
 - [x] SO ENGLISH! logo in header/navigation
 - [x] Slide-inspired card designs with sunrise imagery
+
+## Phase 11: 3-Term Curriculum & Semester System
+- [x] Expand curriculum to 3 terms (72 weeks, 288 lessons)
+- [x] Term selector tabs (Term 1 / Term 2 / Term 3) in Admin lesson management
+- [x] 6-month contract rule enforcement (semester window based rest requests)
+- [x] Preservation of member streak, points, and badge data across semesters
+
+## Phase 12: Streak Freeze & Activity Audit
+- [x] Streak Freeze purchase item (500 pts)
+- [x] Automatic streak protection when login is missed with active freeze
+- [x] Leaderboard podium display (Top 3 awards: 🥇, 🥈, 🥉)
+- [x] Multi-line point progress chart with weekly average benchmark line
+
+## Phase 13: Broadcast & Push Notifications
+- [x] Global push notification broadcaster for administrators
+- [x] Real-time notification preview matching student drawer
+- [x] Edit and re-send broadcast capabilities
+- [x] Broadcast history table with deletion
+
+## Phase 14: Dashboard "お知らせ＆スレッド" (News & Threads)
+- [x] 2-column card layout between Login Bonus and Today's Lesson
+- [x] Left column: "お知らせ" (Course News & announcements)
+- [x] Right column: "スレッド" (Feature guides & usage instructions)
+- [x] Unread indicator (green diamond bullet)
+- [x] New indicator (animated pulsing NEW badge for items within 3 days)
+- [x] Auto-read mutation triggered on detail modal open
+- [x] Rich media detail popup (Markdown, aspect-ratio preserved images, HTML5 video player)
+- [x] Full history slide-over modals for both categories
+
+## Phase 15: Content Management System (CMS Tab)
+- [x] CMS tab in Admin Panel with dual-column layout
+- [x] CRUD management for お知らせ (Create, Edit, Delete with cascade read removal)
+- [x] CRUD management for スレッド (Create, Edit, Delete with cascade read removal)
+- [x] Rich media indicator badges (Image, Video) in tables
+
+## Phase 16: Cloud Deployment & Database Synchronization
+- [x] Production TiDB Cloud direct migration for `courseNews`, `threads`, `courseNewsReads`, `threadReads`
+- [x] Render deployment pipeline synchronization via `main` branch
+- [x] Full mock storage fallback for DB-less local development mode
