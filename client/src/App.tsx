@@ -14,6 +14,7 @@ import ProgressPage from "./pages/ProgressPage";
 import SchedulePage from "./pages/SchedulePage";
 import AdminPage from "./pages/AdminPage";
 import SettingsPage from "./pages/SettingsPage";
+import RoadmapApp from "./pages/RoadmapApp";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, loading } = useAuth();
@@ -43,6 +44,7 @@ function Router() {
 
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route path="/admin" component={() => <AdminRoute component={AdminPage} />} />
+      <Route path="/roadmap" component={RoadmapApp} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

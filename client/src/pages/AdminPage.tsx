@@ -13,11 +13,12 @@ import { Label } from "@/components/ui/label";
 import {
   ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line
 } from "recharts";
+import { Link } from "wouter";
 import {
   Shield, Users, Search, TrendingUp, CheckCircle2, Loader2, BookOpen,
   Plus, Pencil, Trash2, Eye, EyeOff, HelpCircle, Trophy, Bell, Send,
   Flame, Star, Award, AlertTriangle, Check, Layers, Megaphone, MessageSquare,
-  Video, ImageIcon
+  Video, ImageIcon, Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -433,6 +434,15 @@ export default function AdminPage() {
           <p className="text-muted-foreground mt-1">Manage members and course content</p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link href="/roadmap">
+            <Button
+              variant="outline"
+              className="rounded-xl gap-2 font-bold text-xs shadow-sm bg-background border-primary/20 hover:border-primary/40 hover:bg-primary/[0.02]"
+            >
+              <Target size={16} className="text-primary" />
+              ロードマップ & 仕様書
+            </Button>
+          </Link>
           <Button
             variant="outline"
             className="rounded-xl gap-2 font-bold text-xs shadow-sm bg-background border-primary/20 hover:border-primary/40 hover:bg-primary/[0.02]"

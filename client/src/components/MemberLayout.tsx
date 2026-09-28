@@ -15,6 +15,7 @@ import {
   User,
   Menu,
   X,
+  Target,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -151,22 +152,40 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
           })}
 
           {(user as any)?.role === "admin" && (
-            <Link href="/admin">
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 mt-3",
-                  isActive("/admin") ? "text-white shadow-sm" : "opacity-70 hover:opacity-100"
-                )}
-                style={
-                  isActive("/admin")
-                    ? { background: "var(--sidebar-accent)", color: "var(--sidebar-accent-foreground)" }
-                    : { color: "var(--sidebar-foreground)" }
-                }
-              >
-                <Shield size={18} />
-                <span>管理者パネル</span>
-              </div>
-            </Link>
+            <>
+              <Link href="/admin">
+                <div
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 mt-3",
+                    isActive("/admin") ? "text-white shadow-sm" : "opacity-70 hover:opacity-100"
+                  )}
+                  style={
+                    isActive("/admin")
+                      ? { background: "var(--sidebar-accent)", color: "var(--sidebar-accent-foreground)" }
+                      : { color: "var(--sidebar-foreground)" }
+                  }
+                >
+                  <Shield size={18} />
+                  <span>管理者パネル</span>
+                </div>
+              </Link>
+              <Link href="/roadmap">
+                <div
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 mt-1",
+                    isActive("/roadmap") ? "text-white shadow-sm" : "opacity-70 hover:opacity-100"
+                  )}
+                  style={
+                    isActive("/roadmap")
+                      ? { background: "var(--sidebar-accent)", color: "var(--sidebar-accent-foreground)" }
+                      : { color: "var(--sidebar-foreground)" }
+                  }
+                >
+                  <Target size={18} />
+                  <span>ロードマップ ＆ 仕様書</span>
+                </div>
+              </Link>
+            </>
           )}
         </nav>
 
@@ -254,18 +273,32 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
                 );
               })}
               {(user as any)?.role === "admin" && (
-                <Link href="/admin">
-                  <div
-                    onClick={() => setSidebarOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors mt-2",
-                      isActive("/admin") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Shield size={18} />
-                    <span>管理者パネル</span>
-                  </div>
-                </Link>
+                <>
+                  <Link href="/admin">
+                    <div
+                      onClick={() => setSidebarOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors mt-2",
+                        isActive("/admin") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <Shield size={18} />
+                      <span>管理者パネル</span>
+                    </div>
+                  </Link>
+                  <Link href="/roadmap">
+                    <div
+                      onClick={() => setSidebarOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors mt-1",
+                        isActive("/roadmap") ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <Target size={18} />
+                      <span>ロードマップ ＆ 仕様書</span>
+                    </div>
+                  </Link>
+                </>
               )}
               <div className="pt-3 border-t border-border mt-3">
                 <button
